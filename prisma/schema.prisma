@@ -50,6 +50,20 @@ model Tanker {
   // Relations
   dailyPrograms DailyProgram[]
   runs          DispatchRun[]
+  compartments  TankerCompartment[] // New Relation
+}
+
+model TankerCompartment {
+  id            String   @id @default(cuid())
+  tankerId      String
+  tanker        Tanker   @relation(fields: [tankerId], references: [id])
+  compartmentNo Int      // Sequence number: 1, 2, 3...
+  capacity      Int      // Liters
+  product       String   // e.g. "DIESEL", "PREMIUM"
+  
+  allocations   CompartmentAllocation[]
+
+  @@unique([tankerId, compartmentNo])
 }
 
 model Station {
@@ -151,6 +165,30 @@ model DispatchRun {
   @@index([driverId])
   @@index([porterId])
   @@index([status])
+  @@index([status])
+
+  // Relations (Extended)
+  allocations     CompartmentAllocation[]
+}
+
+model CompartmentAllocation {
+  id             String            @id @default(cuid())
+  dispatchRunId  String            // Renamed from runId to be specific in code, but schema uses relation
+  dispatchRun    DispatchRun       @relation(fields: [dispatchRunId], references: [id], onDelete: Cascade)
+  compartmentId  String
+  compartment    TankerCompartment @relation(fields: [compartmentId], references: [id])
+  
+  startQty       Int     // Snapshot/Opening balance
+  refillQty      Int     // Added liters
+  plannedQty     Int     // Planned delivery
+  actualQty      Int?    // Actual delivered
+  
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  @@unique([dispatchRunId, compartmentId])
+  @@index([dispatchRunId])
+  @@index([compartmentId])
 }
 
 // ===== UPLIFT (Loading) =====
