@@ -35,6 +35,9 @@ export default function LoginPage() {
             localStorage.setItem('userName', user.name)
             localStorage.setItem('userEmail', user.email)
 
+            // Dispatch event for same-tab updates
+            window.dispatchEvent(new Event('user-auth-change'))
+
             await new Promise(resolve => setTimeout(resolve, 500))
             router.push('/dashboard')
         } else {

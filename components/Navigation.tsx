@@ -19,16 +19,34 @@ export function Navigation() {
 
     useEffect(() => {
         setMounted(true)
-        const role = localStorage.getItem('userRole') as UserRole | null
-        const name = localStorage.getItem('userName')
-        if (role && name) {
-            setUser({ name, role })
+        const checkUser = () => {
+            const role = localStorage.getItem('userRole') as UserRole | null
+            const name = localStorage.getItem('userName')
+            if (role && name) {
+                setUser({ name, role })
+            } else {
+                setUser(null)
+            }
+        }
+
+        checkUser()
+
+        // Listen for storage changes (cross-tab)
+        window.addEventListener('storage', checkUser)
+        // Listen for custom event (same-tab login/logout)
+        window.addEventListener('user-auth-change', checkUser)
+
+        return () => {
+            window.removeEventListener('storage', checkUser)
+            window.removeEventListener('user-auth-change', checkUser)
         }
     }, [])
 
     const handleLogout = () => {
         localStorage.removeItem('userRole')
         localStorage.removeItem('userName')
+        // Dispatch event for same-tab updates
+        window.dispatchEvent(new Event('user-auth-change'))
         window.location.href = '/login'
     }
 
