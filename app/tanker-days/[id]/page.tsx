@@ -677,28 +677,6 @@ export default function TankerDayDetailPage() {
 
                 {/* Right Column - Summary */}
                 <div className="space-y-6">
-                    {/* Default Crew */}
-                    <div className="bg-white rounded-xl border border-gray-100 p-6">
-                        <h3 className="font-semibold text-gray-900 mb-4">Default Crew</h3>
-                        <p className="text-xs text-gray-500 mb-3">Each trip may assign different crew</p>
-                        <div className="space-y-3">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-50 rounded-lg"><User className="h-4 w-4 text-blue-600" /></div>
-                                <div>
-                                    <div className="text-xs text-gray-500">Driver</div>
-                                    <div className="text-sm font-medium text-gray-900">{data.driver}</div>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-green-50 rounded-lg"><User className="h-4 w-4 text-green-600" /></div>
-                                <div>
-                                    <div className="text-xs text-gray-500">Porter</div>
-                                    <div className="text-sm font-medium text-gray-900">{data.porter}</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Summary */}
                     <div className="bg-white rounded-xl border border-gray-100 p-6">
                         <h3 className="font-semibold text-gray-900 mb-4">Summary</h3>
@@ -727,22 +705,6 @@ export default function TankerDayDetailPage() {
                                     <span className="font-bold">{data.summary.exceptions}</span>
                                 </div>
                             )}
-                        </div>
-                    </div>
-
-                    {/* Tanker Compartments */}
-                    <div className="bg-white rounded-xl border border-gray-100 p-6">
-                        <h3 className="font-semibold text-gray-900 mb-4">Compartments</h3>
-                        <div className="space-y-3">
-                            {data.compartments.map((comp: Compartment) => (
-                                <div key={comp.id} className="flex justify-between items-center">
-                                    <div className="flex items-center gap-2">
-                                        <div className={`w-3 h-3 rounded-full ${comp.product === 'DIESEL' ? 'bg-blue-500' : 'bg-green-500'}`} />
-                                        <span className="font-medium text-gray-700">{comp.name}</span>
-                                    </div>
-                                    <div className="text-sm text-gray-500">{comp.maxVolume.toLocaleString()}L • {comp.product}</div>
-                                </div>
-                            ))}
                         </div>
                     </div>
                 </div>

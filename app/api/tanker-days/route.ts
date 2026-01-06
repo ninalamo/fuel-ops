@@ -7,6 +7,18 @@ export async function GET(request: NextRequest) {
         const searchParams = request.nextUrl.searchParams
         const date = searchParams.get('date') || format(new Date(), 'yyyy-MM-dd')
 
+        const today = format(new Date(), 'yyyy-MM-dd')
+        const isFuture = date > today
+        const isToday = date === today
+
+        // If future date, return no data (simulate empty day)
+        if (isFuture) {
+            return NextResponse.json({
+                tankerDays: [],
+                stats: { totalTankers: 0, open: 0, submitted: 0, locked: 0 }
+            })
+        }
+
         const tankers = [
             { id: 'tanker-1', plateNumber: 'ABC-1234', capacity: 30000 },
             { id: 'tanker-2', plateNumber: 'XYZ-5678', capacity: 25000 },
@@ -14,10 +26,12 @@ export async function GET(request: NextRequest) {
             { id: 'tanker-4', plateNumber: 'GHI-3456', capacity: 20000 },
         ]
 
+        const activeTankers = isToday ? tankers.slice(0, 2) : tankers
+
         const drivers = ['Juan Cruz', 'Pedro Santos', 'Maria Garcia', 'Jose Reyes']
         const statuses: ('OPEN' | 'SUBMITTED' | 'RETURNED' | 'LOCKED')[] = ['OPEN', 'SUBMITTED', 'LOCKED', 'OPEN']
 
-        const tankerDays = tankers.map((tanker, idx) => {
+        const tankerDays = activeTankers.map((tanker, idx) => {
             const status = statuses[idx]
             const totalTrips = Math.floor(Math.random() * 3) + 2
             const tripsCompleted = status === 'LOCKED'

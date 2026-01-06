@@ -15,7 +15,8 @@ import {
     CheckCircle,
     User,
     Fuel,
-    X
+    X,
+    Layers
 } from 'lucide-react'
 import { Modal } from '@/components/Modal'
 
@@ -106,6 +107,33 @@ export default function DashboardPage() {
         setCreateForm({ tankerId: '' })
     }
 
+    const handleBulkCreate = () => {
+        const assignedIds = tankerDays.map(td => td.tankerId)
+        const toCreate = AVAILABLE_TANKERS.filter(t => !assignedIds.includes(t.id))
+
+        if (toCreate.length === 0) return
+
+        const newDays: TankerDay[] = toCreate.map(t => ({
+            id: `td-${businessDate}-${t.id}`,
+            date: businessDate,
+            tankerId: t.id,
+            plateNumber: t.plateNumber,
+            driver: '',
+            status: 'OPEN',
+            tripsCompleted: 0,
+            totalTrips: 0,
+            litersDelivered: 0,
+            hasExceptions: false,
+        }))
+
+        setTankerDays([...tankerDays, ...newDays])
+        setStats({
+            ...stats,
+            totalTankers: stats.totalTankers + newDays.length,
+            open: stats.open + newDays.length
+        })
+    }
+
     const getStatusBadge = (status: string) => {
         const styles: Record<string, string> = {
             OPEN: 'bg-blue-100 text-blue-700 border-blue-200',
@@ -184,18 +212,32 @@ export default function DashboardPage() {
                     </div>
                     {/* Create Tanker Day Button - Only for Encoder/Admin and current day */}
                     {(userRole === 'encoder' || userRole === 'admin') && (
-                        <button
-                            onClick={() => setShowCreateModal(true)}
-                            disabled={businessDate !== format(new Date(), 'yyyy-MM-dd')}
-                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${businessDate !== format(new Date(), 'yyyy-MM-dd')
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-blue-600 text-white hover:bg-blue-700'
-                                }`}
-                            title={businessDate !== format(new Date(), 'yyyy-MM-dd') ? 'Tanker days can only be created for today' : ''}
-                        >
-                            <Plus className="h-4 w-4" />
-                            Create Tanker Day
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleBulkCreate}
+                                disabled={businessDate !== format(new Date(), 'yyyy-MM-dd') || availableTankersForDay.length === 0}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${businessDate !== format(new Date(), 'yyyy-MM-dd') || availableTankersForDay.length === 0
+                                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                        : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'
+                                    }`}
+                                title="Open days for all unassigned tankers"
+                            >
+                                <Layers className="h-4 w-4" />
+                                Bulk Open ({availableTankersForDay.length})
+                            </button>
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                disabled={businessDate !== format(new Date(), 'yyyy-MM-dd')}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${businessDate !== format(new Date(), 'yyyy-MM-dd')
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    }`}
+                                title={businessDate !== format(new Date(), 'yyyy-MM-dd') ? 'Tanker days can only be created for today' : ''}
+                            >
+                                <Plus className="h-4 w-4" />
+                                Create Tanker Day
+                            </button>
+                        </div>
                     )}
                 </div>
             </div>

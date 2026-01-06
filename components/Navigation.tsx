@@ -71,7 +71,9 @@ export function Navigation() {
                         <NavTab href="/dashboard" label="Dashboard" isActive={pathname === '/dashboard' || pathname.startsWith('/tanker-days')} />
                         <NavTab href="/fleet-status" label="Fleet Status" isActive={pathname === '/fleet-status'} />
                         <NavTab href="/trips" label="Trips" isActive={pathname === '/trips'} />
-                        <NavTab href="/reports" label="Reports" isActive={pathname.startsWith('/reports')} />
+                        {user?.role !== 'encoder' && (
+                            <NavTab href="/reports" label="Reports" isActive={pathname.startsWith('/reports')} />
+                        )}
                         {user?.role === 'admin' && (
                             <NavTab href="/admin" label="Admin" isActive={pathname.startsWith('/admin')} />
                         )}
