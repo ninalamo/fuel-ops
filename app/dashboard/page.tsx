@@ -61,8 +61,6 @@ export default function DashboardPage() {
     const [showCreateModal, setShowCreateModal] = useState(false)
     const [createForm, setCreateForm] = useState({
         tankerId: '',
-        driver: '',
-        porter: '',
     })
 
     useEffect(() => {
@@ -94,7 +92,7 @@ export default function DashboardPage() {
                 date: businessDate,
                 tankerId: createForm.tankerId,
                 plateNumber: selectedTanker.plateNumber,
-                driver: createForm.driver,
+                driver: '',  // Assigned per trip, not at tanker day level
                 status: 'OPEN',
                 tripsCompleted: 0,
                 totalTrips: 0,
@@ -105,7 +103,7 @@ export default function DashboardPage() {
             setStats({ ...stats, totalTankers: stats.totalTankers + 1, open: stats.open + 1 })
         }
         setShowCreateModal(false)
-        setCreateForm({ tankerId: '', driver: '', porter: '' })
+        setCreateForm({ tankerId: '' })
     }
 
     const getStatusBadge = (status: string) => {
@@ -190,8 +188,8 @@ export default function DashboardPage() {
                             onClick={() => setShowCreateModal(true)}
                             disabled={businessDate !== format(new Date(), 'yyyy-MM-dd')}
                             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${businessDate !== format(new Date(), 'yyyy-MM-dd')
-                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                : 'bg-blue-600 text-white hover:bg-blue-700'
                                 }`}
                             title={businessDate !== format(new Date(), 'yyyy-MM-dd') ? 'Tanker days can only be created for today' : ''}
                         >
@@ -331,7 +329,7 @@ export default function DashboardPage() {
                             <Calendar className="h-4 w-4" />
                             Business Date: {format(new Date(businessDate), 'EEEE, MMMM d, yyyy')}
                         </div>
-                        <p className="text-sm text-blue-600">Select a tanker and assign crew for this day's operations.</p>
+                        <p className="text-sm text-blue-600">Select a tanker for this day's operations. Driver and Porter are assigned per trip.</p>
                     </div>
 
                     {/* Tanker Selection */}
@@ -365,38 +363,6 @@ export default function DashboardPage() {
                         )}
                     </div>
 
-                    {/* Crew Assignment */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                <User className="h-4 w-4 inline mr-1" />
-                                Driver
-                            </label>
-                            <select
-                                value={createForm.driver}
-                                onChange={(e) => setCreateForm({ ...createForm, driver: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-                            >
-                                <option value="">Select driver...</option>
-                                {AVAILABLE_DRIVERS.map(d => <option key={d} value={d}>{d}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                <User className="h-4 w-4 inline mr-1" />
-                                Porter
-                            </label>
-                            <select
-                                value={createForm.porter}
-                                onChange={(e) => setCreateForm({ ...createForm, porter: e.target.value })}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-                            >
-                                <option value="">Select porter...</option>
-                                {AVAILABLE_PORTERS.map(p => <option key={p} value={p}>{p}</option>)}
-                            </select>
-                        </div>
-                    </div>
-
                     {/* Actions */}
                     <div className="flex gap-3 pt-4 border-t border-gray-100">
                         <button
@@ -407,7 +373,7 @@ export default function DashboardPage() {
                         </button>
                         <button
                             onClick={handleCreateTankerDay}
-                            disabled={!createForm.tankerId || !createForm.driver}
+                            disabled={!createForm.tankerId}
                             className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             <Plus className="h-4 w-4" />

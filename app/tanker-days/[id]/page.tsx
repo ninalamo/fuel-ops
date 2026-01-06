@@ -58,7 +58,15 @@ interface TripDetail {
     variance: number | null
     hasPod: boolean
     podFiles: string[]
-    compartmentAllocation: Array<{ compartmentId: string; name: string; plannedQty: number; actualQty: number | null }>
+    compartmentAllocation: Array<{
+        compartmentId: string;
+        name: string;
+        startQty: number;      // Snapshot/Opening balance
+        refillQty: number;     // Additional liters added
+        totalQty: number;      // Total available (start + refill)
+        plannedQty: number;
+        actualQty: number | null
+    }>
     cancelReason?: string
 }
 
@@ -99,21 +107,19 @@ export default function TankerDayDetailPage() {
     const [expandedTrip, setExpandedTrip] = useState<string | null>(null)
 
     // Modal states
-    const [showSnapshotModal, setShowSnapshotModal] = useState(false)
-    const [showRefillModal, setShowRefillModal] = useState(false)
     const [showTripModal, setShowTripModal] = useState(false)
     const [showPodModal, setShowPodModal] = useState(false)
     const [showCancelModal, setShowCancelModal] = useState(false)
     const [showDeliveryModal, setShowDeliveryModal] = useState(false)
     const [selectedTrip, setSelectedTrip] = useState<TripDetail | null>(null)
 
-    // Trip form state - per-compartment allocation
+    // Trip form state - per-compartment allocation and refill
     const [tripForm, setTripForm] = useState({
         driver: '',
         porter: '',
         customer: '',
         station: '',
-        compartments: {} as Record<string, number>,
+        compartments: {} as Record<string, { startQty: number; refillQty: number; plannedQty: number }>,
     })
 
     // Delivery form state
@@ -144,7 +150,56 @@ export default function TankerDayDetailPage() {
     const canPerformOperations = userRole === 'encoder' || userRole === 'admin'
     const canApprove = userRole === 'validator' || userRole === 'supervisor' || userRole === 'admin'
 
-    const getTotalTripQty = () => Object.values(tripForm.compartments).reduce((a, b) => a + b, 0)
+    const getTotalTripQty = () => Object.values(tripForm.compartments).reduce((a, b) => a + b.plannedQty, 0)
+
+    const handleOpenNewTrip = () => {
+        if (!data) return
+
+        const compartmentStates: Record<string, { startQty: number; refillQty: number; plannedQty: number }> = {}
+
+        data.compartments.forEach(comp => {
+            // Find last allocations for this compartment to calculate current balance
+            // Iterate trips in reverse to find last usage
+            let currentLevel = 0
+            if (data.trips.length > 0) {
+                // Simple logic: Assuming sequential consistency
+                // Look for the last trip segment.
+                const lastAlloc = [...data.trips].reverse()
+                    .map(t => t.compartmentAllocation?.find(ca => ca.compartmentId === comp.id))
+                    .find(Boolean)
+
+                if (lastAlloc) {
+                    // If we have history, calc balance
+                    const outbound = lastAlloc.actualQty !== null ? lastAlloc.actualQty : lastAlloc.plannedQty
+                    // Handle potential missing new fields in old mock data by defaulting to 0 or max logic if needed
+                    // But for now defaulting to 0 is safer than guessing max
+                    const start = lastAlloc.startQty ?? 0
+                    const refill = lastAlloc.refillQty ?? 0
+                    currentLevel = start + refill - outbound
+                } else {
+                    // First trip or never used? Default to 0, user can "Refill" (Initial Load)
+                    currentLevel = 0
+                }
+            }
+            // Ensure non-negative
+            currentLevel = Math.max(0, currentLevel)
+
+            compartmentStates[comp.id] = {
+                startQty: currentLevel,
+                refillQty: 0,
+                plannedQty: 0
+            }
+        })
+
+        setTripForm({
+            driver: '',
+            porter: '',
+            customer: '',
+            station: '',
+            compartments: compartmentStates
+        })
+        setShowTripModal(true)
+    }
 
     // Trip Actions
     const handleCreateTrip = () => {
@@ -156,7 +211,8 @@ export default function TankerDayDetailPage() {
             porter: tripForm.porter || data.porter,
             customer: tripForm.customer,
             station: tripForm.station,
-            product: data.compartments.find((c: Compartment) => tripForm.compartments[c.id] > 0)?.product || 'DIESEL',
+            // Determine primary product (simple heuristic)
+            product: data.compartments.find((c: Compartment) => tripForm.compartments[c.id]?.plannedQty > 0)?.product || 'DIESEL',
             status: 'PENDING',
             departedAt: null,
             returnedAt: null,
@@ -165,12 +221,19 @@ export default function TankerDayDetailPage() {
             variance: null,
             hasPod: false,
             podFiles: [],
-            compartmentAllocation: data.compartments.filter((c: Compartment) => tripForm.compartments[c.id] > 0).map((c: Compartment) => ({
-                compartmentId: c.id,
-                name: c.name,
-                plannedQty: tripForm.compartments[c.id],
-                actualQty: null,
-            })),
+            // Snapshot all compartments
+            compartmentAllocation: data.compartments.map((c: Compartment) => {
+                const formState = tripForm.compartments[c.id]
+                return {
+                    compartmentId: c.id,
+                    name: c.name,
+                    startQty: formState.startQty,
+                    refillQty: formState.refillQty,
+                    totalQty: formState.startQty + formState.refillQty,
+                    plannedQty: formState.plannedQty,
+                    actualQty: null,
+                }
+            }),
         }
         setData({
             ...data,
@@ -182,13 +245,6 @@ export default function TankerDayDetailPage() {
             },
         })
         setShowTripModal(false)
-        setTripForm({
-            driver: '',
-            porter: '',
-            customer: '',
-            station: '',
-            compartments: Object.fromEntries(data.compartments.map((c: Compartment) => [c.id, 0])),
-        })
     }
 
     const handleDepartTrip = (trip: TripDetail) => {
@@ -405,28 +461,17 @@ export default function TankerDayDetailPage() {
                     {canPerformOperations && data.status === 'OPEN' && (
                         <div className="bg-white rounded-xl border border-gray-100 p-6">
                             <h3 className="font-semibold text-gray-900 mb-4">Operations</h3>
-                            <div className="grid grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 gap-4">
                                 <button
-                                    onClick={() => setShowSnapshotModal(true)}
-                                    className="flex flex-col items-center justify-center p-4 rounded-xl bg-blue-50 hover:bg-blue-100 transition-colors group"
+                                    onClick={() => handleOpenNewTrip()}
+                                    className="flex items-center justify-center gap-3 p-4 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm"
                                 >
-                                    <Camera className="h-8 w-8 text-blue-600 mb-2 group-hover:scale-110 transition-transform" />
-                                    <span className="text-sm font-medium text-gray-700">Snapshot</span>
+                                    <MapPin className="h-6 w-6" />
+                                    <span className="font-semibold text-lg">New Trip</span>
                                 </button>
-                                <button
-                                    onClick={() => setShowRefillModal(true)}
-                                    className="flex flex-col items-center justify-center p-4 rounded-xl bg-green-50 hover:bg-green-100 transition-colors group"
-                                >
-                                    <Fuel className="h-8 w-8 text-green-600 mb-2 group-hover:scale-110 transition-transform" />
-                                    <span className="text-sm font-medium text-gray-700">Refill</span>
-                                </button>
-                                <button
-                                    onClick={() => setShowTripModal(true)}
-                                    className="flex flex-col items-center justify-center p-4 rounded-xl bg-yellow-50 hover:bg-yellow-100 transition-colors group"
-                                >
-                                    <MapPin className="h-8 w-8 text-yellow-600 mb-2 group-hover:scale-110 transition-transform" />
-                                    <span className="text-sm font-medium text-gray-700">New Trip</span>
-                                </button>
+                                <p className="text-center text-sm text-gray-500">
+                                    Creating a trip will automatically record snapshots and allow for refills.
+                                </p>
                             </div>
                         </div>
                     )}
@@ -496,10 +541,20 @@ export default function TankerDayDetailPage() {
                                             {trip.compartmentAllocation && trip.compartmentAllocation.length > 0 && (
                                                 <div className="mt-4">
                                                     <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Compartment Allocation</h4>
-                                                    <div className="grid grid-cols-2 gap-2">
+                                                    <div className="space-y-2">
                                                         {trip.compartmentAllocation.map(ca => (
                                                             <div key={ca.compartmentId} className="flex justify-between items-center p-2 bg-white rounded border border-gray-100">
-                                                                <span className="font-medium text-gray-700">{ca.name}</span>
+                                                                <div>
+                                                                    <div className="font-medium text-gray-700">{ca.name}</div>
+                                                                    {(ca.startQty !== undefined || ca.refillQty !== undefined) && (
+                                                                        <div className="text-xs text-gray-400 flex items-center gap-1">
+                                                                            <span>Start: {ca.startQty?.toLocaleString() ?? 0}L</span>
+                                                                            {ca.refillQty ? <span className="text-green-600 font-medium">(+{ca.refillQty.toLocaleString()}L Refill)</span> : ''}
+                                                                            <span className="text-gray-300">|</span>
+                                                                            <span>Avail: {((ca.startQty || 0) + (ca.refillQty || 0)).toLocaleString()}L</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                                 <div className="text-right">
                                                                     <div className="text-sm text-gray-900">
                                                                         {ca.actualQty !== null ? `${ca.actualQty.toLocaleString()}L` : `${ca.plannedQty.toLocaleString()}L`}
@@ -649,11 +704,11 @@ export default function TankerDayDetailPage() {
                         <h3 className="font-semibold text-gray-900 mb-4">Summary</h3>
                         <div className="space-y-4">
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-500">Total Planned</span>
+                                <span className="text-gray-500">Total Planned (Day)</span>
                                 <span className="font-bold text-gray-900">{data.summary.totalPlanned.toLocaleString()} L</span>
                             </div>
                             <div className="flex justify-between items-center">
-                                <span className="text-gray-500">Total Delivered</span>
+                                <span className="text-gray-500">Delivered (Day)</span>
                                 <span className="font-bold text-gray-900">{data.summary.totalDelivered.toLocaleString()} L</span>
                             </div>
                             {data.summary.totalVariance !== 0 && (
@@ -693,46 +748,7 @@ export default function TankerDayDetailPage() {
                 </div>
             </div>
 
-            {/* Snapshot Modal */}
-            <Modal isOpen={showSnapshotModal} onClose={() => setShowSnapshotModal(false)} title="Record Snapshot">
-                <div className="space-y-4">
-                    <p className="text-sm text-gray-600">Record the current fuel levels in all compartments.</p>
-                    {data.compartments.map((comp: Compartment) => (
-                        <div key={comp.id}>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">{comp.name} - {comp.product} (Max: {comp.maxVolume.toLocaleString()}L)</label>
-                            <input type="number" className="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="Enter liters" />
-                        </div>
-                    ))}
-                    <div className="flex gap-3 pt-4">
-                        <button onClick={() => setShowSnapshotModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                        <button onClick={() => setShowSnapshotModal(false)} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Snapshot</button>
-                    </div>
-                </div>
-            </Modal>
 
-            {/* Refill Modal */}
-            <Modal isOpen={showRefillModal} onClose={() => setShowRefillModal(false)} title="Record Refill">
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Depot</label>
-                        <select className="w-full px-3 py-2 border border-gray-200 rounded-lg">
-                            <option>Depot Manila</option>
-                            <option>Depot Batangas</option>
-                            <option>Depot Laguna</option>
-                        </select>
-                    </div>
-                    {data.compartments.map((comp: Compartment) => (
-                        <div key={comp.id}>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">{comp.name} - {comp.product}</label>
-                            <input type="number" className="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="Liters added" />
-                        </div>
-                    ))}
-                    <div className="flex gap-3 pt-4">
-                        <button onClick={() => setShowRefillModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
-                        <button onClick={() => setShowRefillModal(false)} className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Save Refill</button>
-                    </div>
-                </div>
-            </Modal>
 
             {/* New Trip Modal */}
             <Modal isOpen={showTripModal} onClose={() => setShowTripModal(false)} title="Create New Trip" size="lg">
@@ -771,36 +787,79 @@ export default function TankerDayDetailPage() {
                             </select>
                         </div>
                     </div>
-                    {/* Compartment Allocation */}
+                    {/* Compartment Allocation, Refill & Planning */}
                     <div className="border-t border-gray-100 pt-4">
-                        <label className="block text-sm font-medium text-gray-900 mb-3">Allocate from Compartments</label>
-                        <div className="space-y-3">
-                            {data.compartments.map((comp: Compartment) => (
-                                <div key={comp.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                                    <div className="flex items-center gap-2 min-w-24">
-                                        <div className={`w-3 h-3 rounded-full ${comp.product === 'DIESEL' ? 'bg-blue-500' : 'bg-green-500'}`} />
-                                        <span className="font-medium text-gray-700">{comp.name}</span>
+                        <label className="block text-sm font-medium text-gray-900 mb-3">Snapshot & Plan</label>
+                        <div className="space-y-4">
+                            {data.compartments.map((comp: Compartment) => {
+                                const state = tripForm.compartments[comp.id] || { startQty: 0, refillQty: 0, plannedQty: 0 }
+                                const totalAvailable = state.startQty + state.refillQty
+                                const isOverAllocated = state.plannedQty > totalAvailable
+
+                                return (
+                                    <div key={comp.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                        {/* Header */}
+                                        <div className="flex justify-between items-center mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-3 h-3 rounded-full ${comp.product === 'DIESEL' ? 'bg-blue-500' : 'bg-green-500'}`} />
+                                                <span className="font-medium text-gray-900">{comp.name}</span>
+                                                <span className="text-xs text-gray-500 ml-1">{comp.product}</span>
+                                            </div>
+                                            <div className="text-xs text-gray-400">Max: {comp.maxVolume.toLocaleString()}L</div>
+                                        </div>
+
+                                        {/* Inputs Grid */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {/* Current Level */}
+                                            <div>
+                                                <label className="block text-xs font-medium text-gray-500 mb-1">Current</label>
+                                                <input
+                                                    type="number"
+                                                    value={state.startQty}
+                                                    disabled
+                                                    className="w-full px-2 py-1.5 bg-gray-100 border border-gray-200 rounded text-right text-gray-500"
+                                                />
+                                            </div>
+
+                                            {/* Add/Refill */}
+                                            <div>
+                                                <label className="block text-xs font-medium text-blue-600 mb-1">+ Refill (Planned)</label>
+                                                <input
+                                                    type="number"
+                                                    min="0"
+                                                    value={state.refillQty || ''}
+                                                    onChange={(e) => {
+                                                        const newVal = Math.max(0, parseInt(e.target.value) || 0)
+                                                        setTripForm(prev => ({
+                                                            ...prev,
+                                                            compartments: {
+                                                                ...prev.compartments,
+                                                                [comp.id]: {
+                                                                    ...state,
+                                                                    refillQty: newVal,
+                                                                    plannedQty: newVal // Auto-sync: Refill = Planned
+                                                                }
+                                                            }
+                                                        }))
+                                                    }}
+                                                    className="w-full px-2 py-1.5 border border-blue-200 rounded text-right focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                                    placeholder="0"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Total Available Indicator */}
+                                        <div className="flex justify-between items-center mt-2 text-xs">
+                                            <span className="text-gray-500">Total Available:</span>
+                                            <span className={`font-medium ${isOverAllocated ? 'text-red-600' : 'text-gray-700'}`}>
+                                                {totalAvailable.toLocaleString()} L
+                                            </span>
+                                        </div>
                                     </div>
-                                    <div className="text-xs text-gray-500 min-w-20">{comp.product}</div>
-                                    <div className="flex-1">
-                                        <input
-                                            type="number"
-                                            min="0"
-                                            max={comp.maxVolume}
-                                            value={tripForm.compartments[comp.id] || 0}
-                                            onChange={(e) => setTripForm({
-                                                ...tripForm,
-                                                compartments: { ...tripForm.compartments, [comp.id]: parseInt(e.target.value) || 0 }
-                                            })}
-                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-right"
-                                            placeholder="0"
-                                        />
-                                    </div>
-                                    <span className="text-sm text-gray-400 w-8">L</span>
-                                </div>
-                            ))}
+                                )
+                            })}
                         </div>
-                        <div className="mt-3 p-3 bg-blue-50 rounded-lg flex justify-between items-center">
+                        <div className="mt-4 p-3 bg-blue-50 rounded-lg flex justify-between items-center border border-blue-100">
                             <span className="font-semibold text-blue-900">Total Planned Quantity</span>
                             <span className="text-xl font-bold text-blue-600">{getTotalTripQty().toLocaleString()} L</span>
                         </div>
