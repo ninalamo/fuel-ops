@@ -84,27 +84,32 @@ export default function DashboardPage() {
         }
     }
 
-    const handleCreateTankerDay = () => {
-        // In real app, this would POST to API
-        const selectedTanker = AVAILABLE_TANKERS.find(t => t.id === createForm.tankerId)
-        if (selectedTanker) {
-            const newTankerDay: TankerDay = {
-                id: `td-${businessDate}-${createForm.tankerId}`,
-                date: businessDate,
-                tankerId: createForm.tankerId,
-                plateNumber: selectedTanker.plateNumber,
-                driver: '',  // Assigned per trip, not at tanker day level
-                status: 'OPEN',
-                tripsCompleted: 0,
-                totalTrips: 0,
-                litersDelivered: 0,
-                hasExceptions: false,
+    const handleCreateTankerDay = async () => {
+        try {
+            const res = await fetch('/api/tanker-days', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: businessDate,
+                    tankerId: createForm.tankerId
+                })
+            })
+
+            if (!res.ok) {
+                const err = await res.json()
+                alert(err.error || 'Failed to create tanker day')
+                return
             }
+
+            const newTankerDay = await res.json()
             setTankerDays([...tankerDays, newTankerDay])
             setStats({ ...stats, totalTankers: stats.totalTankers + 1, open: stats.open + 1 })
+            setShowCreateModal(false)
+            setCreateForm({ tankerId: '' })
+        } catch (error) {
+            console.error('Failed to create tanker day:', error)
+            alert('An error occurred while creating the tanker day')
         }
-        setShowCreateModal(false)
-        setCreateForm({ tankerId: '' })
     }
 
     const handleBulkCreate = () => {

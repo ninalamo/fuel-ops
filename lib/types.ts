@@ -48,6 +48,7 @@ export interface CompartmentAllocation {
     totalQty: number
     plannedQty: number
     actualQty: number | null
+    product?: string // Override default product
 }
 
 export interface TripDetail {

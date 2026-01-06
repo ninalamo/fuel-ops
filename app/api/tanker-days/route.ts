@@ -19,3 +19,28 @@ export async function GET(request: NextRequest) {
         )
     }
 }
+
+export async function POST(request: NextRequest) {
+    try {
+        const body = await request.json()
+        const { date, tankerId } = body
+
+        if (!date || !tankerId) {
+            return NextResponse.json(
+                { error: 'Date and Tanker ID are required' },
+                { status: 400 }
+            )
+        }
+
+        const service = getOperationsService()
+        const result = await service.createTankerDay(date, tankerId)
+
+        return NextResponse.json(result, { status: 201 })
+    } catch (error) {
+        console.error('Error creating tanker day:', error)
+        return NextResponse.json(
+            { error: 'Failed to create tanker day' },
+            { status: 500 }
+        )
+    }
+}

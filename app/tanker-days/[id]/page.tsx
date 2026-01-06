@@ -34,6 +34,7 @@ const CUSTOMERS = ['Shell Philippines', 'Petron Corporation', 'Caltex Philippine
 const STATIONS = ['Shell EDSA', 'Shell Ortigas', 'Petron Makati', 'Caltex BGC', 'Phoenix Alabang']
 const DRIVERS = ['Juan Cruz', 'Pedro Santos', 'Maria Garcia', 'Jose Reyes']
 const PORTERS = ['Carlos Lopez', 'Ana Mendez', 'Luis Torres', 'Rosa Fernandez']
+const PRODUCTS = ['DIESEL', 'GASOLINE', 'UNLEADED', 'PREMIUM', 'KEROSENE']
 
 // Local interfaces replaced by imports from '@/lib/types'
 
@@ -57,7 +58,7 @@ export default function TankerDayDetailPage() {
         porter: '',
         customer: '',
         station: '',
-        compartments: {} as Record<string, { startQty: number; refillQty: number; plannedQty: number }>,
+        compartments: {} as Record<string, { startQty: number; refillQty: number; plannedQty: number; product: string }>,
     })
 
     // Delivery form state
@@ -99,12 +100,14 @@ export default function TankerDayDetailPage() {
     const handleOpenNewTrip = () => {
         if (!data) return
 
-        const compartmentStates: Record<string, { startQty: number; refillQty: number; plannedQty: number }> = {}
+        const compartmentStates: Record<string, { startQty: number; refillQty: number; plannedQty: number; product: string }> = {}
 
         data.compartments.forEach(comp => {
             // Find last allocations for this compartment to calculate current balance
             // Iterate trips in reverse to find last usage
             let currentLevel = 0
+            let lastProduct = comp.product // Default to tanker config
+
             if (data.trips.length > 0) {
                 // Simple logic: Assuming sequential consistency
                 // Look for the last trip segment.
@@ -115,11 +118,10 @@ export default function TankerDayDetailPage() {
                 if (lastAlloc) {
                     // If we have history, calc balance
                     const outbound = lastAlloc.actualQty !== null ? lastAlloc.actualQty : lastAlloc.plannedQty
-                    // Handle potential missing new fields in old mock data by defaulting to 0 or max logic if needed
-                    // But for now defaulting to 0 is safer than guessing max
                     const start = lastAlloc.startQty ?? 0
                     const refill = lastAlloc.refillQty ?? 0
                     currentLevel = start + refill - outbound
+                    if (lastAlloc.product) lastProduct = lastAlloc.product
                 } else {
                     // First trip or never used? Default to 0, user can "Refill" (Initial Load)
                     currentLevel = 0
@@ -131,7 +133,8 @@ export default function TankerDayDetailPage() {
             compartmentStates[comp.id] = {
                 startQty: currentLevel,
                 refillQty: 0,
-                plannedQty: 0
+                plannedQty: 0,
+                product: lastProduct
             }
         })
 
@@ -161,7 +164,7 @@ export default function TankerDayDetailPage() {
             products: Array.from(new Set(
                 Object.keys(tripForm.compartments)
                     .filter(id => tripForm.compartments[id].plannedQty > 0)
-                    .map(id => data.compartments.find((c: Compartment) => c.id === id)?.product)
+                    .map(id => tripForm.compartments[id].product || data.compartments.find((c: Compartment) => c.id === id)?.product)
                     .filter((p): p is string => !!p)
             )),
             status: 'PENDING',
@@ -183,6 +186,7 @@ export default function TankerDayDetailPage() {
                     totalQty: formState.startQty + formState.refillQty,
                     plannedQty: formState.plannedQty,
                     actualQty: null,
+                    product: formState.product // Save the selected product for this trip
                 }
             }),
         }
@@ -716,7 +720,28 @@ export default function TankerDayDetailPage() {
                                             <div className="flex items-center gap-2">
                                                 <div className={`w-3 h-3 rounded-full ${comp.product === 'DIESEL' ? 'bg-blue-500' : 'bg-green-500'}`} />
                                                 <span className="font-medium text-gray-900">{comp.name}</span>
-                                                <span className="text-xs text-gray-500 ml-1">{comp.product}</span>
+                                                {/* Product Selector */}
+                                                <select
+                                                    value={state.product || comp.product} // fallback to comp.product if undefined
+                                                    onChange={(e) => {
+                                                        const newProduct = e.target.value
+                                                        setTripForm(prev => ({
+                                                            ...prev,
+                                                            compartments: {
+                                                                ...prev.compartments,
+                                                                [comp.id]: {
+                                                                    ...state,
+                                                                    product: newProduct
+                                                                }
+                                                            }
+                                                        }))
+                                                    }}
+                                                    className="text-xs border-0 bg-transparent py-0 pl-1 pr-6 text-gray-500 focus:ring-0 cursor-pointer font-medium hover:text-blue-600"
+                                                >
+                                                    {PRODUCTS.map(p => (
+                                                        <option key={p} value={p}>{p}</option>
+                                                    ))}
+                                                </select>
                                             </div>
                                             <div className="text-xs text-gray-400">Max: {comp.maxVolume.toLocaleString()}L</div>
                                         </div>
