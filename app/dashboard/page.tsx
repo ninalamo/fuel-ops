@@ -12,8 +12,12 @@ import {
     Send,
     Circle,
     Eye,
-    CheckCircle
+    CheckCircle,
+    User,
+    Fuel,
+    X
 } from 'lucide-react'
+import { Modal } from '@/components/Modal'
 
 interface TankerDay {
     id: string
@@ -35,12 +39,31 @@ interface DashboardStats {
     locked: number
 }
 
+// Mock tankers for selection
+const AVAILABLE_TANKERS = [
+    { id: 'tanker-1', plateNumber: 'ABC-1234', capacity: 30000, compartments: 4 },
+    { id: 'tanker-2', plateNumber: 'XYZ-5678', capacity: 25000, compartments: 3 },
+    { id: 'tanker-3', plateNumber: 'DEF-9012', capacity: 20000, compartments: 2 },
+    { id: 'tanker-4', plateNumber: 'GHI-3456', capacity: 35000, compartments: 5 },
+]
+
+const AVAILABLE_DRIVERS = ['Juan Cruz', 'Pedro Santos', 'Maria Garcia', 'Jose Reyes', 'Miguel Torres']
+const AVAILABLE_PORTERS = ['Carlos Lopez', 'Ana Mendez', 'Luis Torres', 'Rosa Fernandez']
+
 export default function DashboardPage() {
     const [tankerDays, setTankerDays] = useState<TankerDay[]>([])
     const [stats, setStats] = useState<DashboardStats>({ totalTankers: 0, open: 0, submitted: 0, locked: 0 })
     const [loading, setLoading] = useState(true)
     const [businessDate, setBusinessDate] = useState(format(new Date(), 'yyyy-MM-dd'))
     const [userRole, setUserRole] = useState<string | null>(null)
+
+    // Create Tanker Day Modal
+    const [showCreateModal, setShowCreateModal] = useState(false)
+    const [createForm, setCreateForm] = useState({
+        tankerId: '',
+        driver: '',
+        porter: '',
+    })
 
     useEffect(() => {
         const role = localStorage.getItem('userRole')
@@ -60,6 +83,29 @@ export default function DashboardPage() {
         } finally {
             setLoading(false)
         }
+    }
+
+    const handleCreateTankerDay = () => {
+        // In real app, this would POST to API
+        const selectedTanker = AVAILABLE_TANKERS.find(t => t.id === createForm.tankerId)
+        if (selectedTanker) {
+            const newTankerDay: TankerDay = {
+                id: `td-${businessDate}-${createForm.tankerId}`,
+                date: businessDate,
+                tankerId: createForm.tankerId,
+                plateNumber: selectedTanker.plateNumber,
+                driver: createForm.driver,
+                status: 'OPEN',
+                tripsCompleted: 0,
+                totalTrips: 0,
+                litersDelivered: 0,
+                hasExceptions: false,
+            }
+            setTankerDays([...tankerDays, newTankerDay])
+            setStats({ ...stats, totalTankers: stats.totalTankers + 1, open: stats.open + 1 })
+        }
+        setShowCreateModal(false)
+        setCreateForm({ tankerId: '', driver: '', porter: '' })
     }
 
     const getStatusBadge = (status: string) => {
@@ -90,11 +136,14 @@ export default function DashboardPage() {
     // Filter tanker days based on role
     const filteredTankerDays = tankerDays.filter(td => {
         if (userRole === 'validator' || userRole === 'supervisor') {
-            // Validators/Supervisors primarily see SUBMITTED items to review
             return td.status === 'SUBMITTED' || td.status === 'LOCKED'
         }
-        return true // Encoders and Admins see all
+        return true
     })
+
+    // Get tankers already assigned today
+    const assignedTankerIds = tankerDays.map(td => td.tankerId)
+    const availableTankersForDay = AVAILABLE_TANKERS.filter(t => !assignedTankerIds.includes(t.id))
 
     const getRoleTitle = () => {
         switch (userRole) {
@@ -135,11 +184,19 @@ export default function DashboardPage() {
                             className="text-sm font-medium text-gray-700 border-0 bg-transparent focus:outline-none"
                         />
                     </div>
-                    {/* Bulk Create Button - Only for Encoder/Admin */}
+                    {/* Create Tanker Day Button - Only for Encoder/Admin and current day */}
                     {(userRole === 'encoder' || userRole === 'admin') && (
-                        <button className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm">
+                        <button
+                            onClick={() => setShowCreateModal(true)}
+                            disabled={businessDate !== format(new Date(), 'yyyy-MM-dd')}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${businessDate !== format(new Date(), 'yyyy-MM-dd')
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                }`}
+                            title={businessDate !== format(new Date(), 'yyyy-MM-dd') ? 'Tanker days can only be created for today' : ''}
+                        >
                             <Plus className="h-4 w-4" />
-                            Bulk Create Tanker Days
+                            Create Tanker Day
                         </button>
                     )}
                 </div>
@@ -191,8 +248,11 @@ export default function DashboardPage() {
                                 ? 'All tanker days have been reviewed.'
                                 : 'No operations scheduled for this date.'}
                         </p>
-                        {userRole === 'encoder' && (
-                            <button className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        {(userRole === 'encoder' || userRole === 'admin') && availableTankersForDay.length > 0 && (
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            >
                                 <Plus className="h-4 w-4" />
                                 Create Tanker Day
                             </button>
@@ -203,24 +263,12 @@ export default function DashboardPage() {
                         <table className="w-full">
                             <thead>
                                 <tr className="border-b border-gray-100">
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        Tanker
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        Driver
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        Status
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        Trips
-                                    </th>
-                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        Liters Delivered
-                                    </th>
-                                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                                        Actions
-                                    </th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tanker</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Driver</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trips</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Liters Delivered</th>
+                                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-50">
@@ -241,9 +289,7 @@ export default function DashboardPage() {
                                             <span className="text-gray-400">/{tanker.totalTrips}</span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span className="font-medium text-gray-900">
-                                                {tanker.litersDelivered.toLocaleString()}
-                                            </span>
+                                            <span className="font-medium text-gray-900">{tanker.litersDelivered.toLocaleString()}</span>
                                             <span className="text-gray-400 ml-1">L</span>
                                         </td>
                                         <td className="px-6 py-4 text-right">
@@ -271,6 +317,105 @@ export default function DashboardPage() {
                     </div>
                 )}
             </div>
+
+            {/* Create Tanker Day Modal */}
+            <Modal
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                title="Create Tanker Day"
+                size="lg"
+            >
+                <div className="space-y-6">
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                        <div className="flex items-center gap-2 text-blue-800 font-medium mb-1">
+                            <Calendar className="h-4 w-4" />
+                            Business Date: {format(new Date(businessDate), 'EEEE, MMMM d, yyyy')}
+                        </div>
+                        <p className="text-sm text-blue-600">Select a tanker and assign crew for this day's operations.</p>
+                    </div>
+
+                    {/* Tanker Selection */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Select Tanker</label>
+                        {availableTankersForDay.length === 0 ? (
+                            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
+                                All tankers are already assigned for this date.
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-3">
+                                {availableTankersForDay.map(tanker => (
+                                    <button
+                                        key={tanker.id}
+                                        onClick={() => setCreateForm({ ...createForm, tankerId: tanker.id })}
+                                        className={`p-4 border rounded-lg text-left transition-all ${createForm.tankerId === tanker.id
+                                            ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                                            : 'border-gray-200 hover:border-blue-300'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <Truck className={`h-5 w-5 ${createForm.tankerId === tanker.id ? 'text-blue-600' : 'text-gray-400'}`} />
+                                            <span className="font-semibold text-gray-900">{tanker.plateNumber}</span>
+                                        </div>
+                                        <div className="text-sm text-gray-500">
+                                            {tanker.capacity.toLocaleString()}L • {tanker.compartments} compartments
+                                        </div>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Crew Assignment */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <User className="h-4 w-4 inline mr-1" />
+                                Driver
+                            </label>
+                            <select
+                                value={createForm.driver}
+                                onChange={(e) => setCreateForm({ ...createForm, driver: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                            >
+                                <option value="">Select driver...</option>
+                                {AVAILABLE_DRIVERS.map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                <User className="h-4 w-4 inline mr-1" />
+                                Porter
+                            </label>
+                            <select
+                                value={createForm.porter}
+                                onChange={(e) => setCreateForm({ ...createForm, porter: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                            >
+                                <option value="">Select porter...</option>
+                                {AVAILABLE_PORTERS.map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex gap-3 pt-4 border-t border-gray-100">
+                        <button
+                            onClick={() => setShowCreateModal(false)}
+                            className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleCreateTankerDay}
+                            disabled={!createForm.tankerId || !createForm.driver}
+                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Create Tanker Day
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     )
 }

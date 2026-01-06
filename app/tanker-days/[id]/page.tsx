@@ -19,17 +19,28 @@ import {
     Plus,
     FileText,
     ChevronDown,
-    ChevronUp
+    ChevronUp,
+    Upload,
+    X,
+    Play,
+    RotateCcw,
+    Ban,
+    Package
 } from 'lucide-react'
 import { Modal } from '@/components/Modal'
 
-// Mock compartment configuration for this tanker
-const TANKER_COMPARTMENTS = [
-    { id: 'c1', name: 'C1', maxVolume: 7500, product: 'DIESEL' },
-    { id: 'c2', name: 'C2', maxVolume: 7500, product: 'DIESEL' },
-    { id: 'c3', name: 'C3', maxVolume: 7500, product: 'UNLEADED' },
-    { id: 'c4', name: 'C4', maxVolume: 7500, product: 'UNLEADED' },
-]
+// Compartment interface
+interface Compartment {
+    id: string
+    name: string
+    maxVolume: number
+    product: string
+}
+
+const CUSTOMERS = ['Shell Philippines', 'Petron Corporation', 'Caltex Philippines', 'Phoenix Petroleum']
+const STATIONS = ['Shell EDSA', 'Shell Ortigas', 'Petron Makati', 'Caltex BGC', 'Phoenix Alabang']
+const DRIVERS = ['Juan Cruz', 'Pedro Santos', 'Maria Garcia', 'Jose Reyes']
+const PORTERS = ['Carlos Lopez', 'Ana Mendez', 'Luis Torres', 'Rosa Fernandez']
 
 interface TripDetail {
     id: string
@@ -39,14 +50,16 @@ interface TripDetail {
     customer: string
     station: string
     product: string
-    status: 'PENDING' | 'DEPARTED' | 'RETURNED'
+    status: 'PENDING' | 'DEPARTED' | 'RETURNED' | 'CANCELLED'
     departedAt: string | null
     returnedAt: string | null
     plannedQty: number
     actualQty: number | null
     variance: number | null
     hasPod: boolean
+    podFiles: string[]
     compartmentAllocation: Array<{ compartmentId: string; name: string; plannedQty: number; actualQty: number | null }>
+    cancelReason?: string
 }
 
 interface TankerDayDetail {
@@ -56,6 +69,7 @@ interface TankerDayDetail {
     driver: string
     porter: string
     status: string
+    compartments: Compartment[]  // Data-driven from API
     trips: TripDetail[]
     timeline: Array<{
         id: string
@@ -74,6 +88,7 @@ interface TankerDayDetail {
         totalTrips: number
         exceptions: number
     }
+    canEdit: boolean  // Business rule flag
 }
 
 export default function TankerDayDetailPage() {
@@ -87,11 +102,25 @@ export default function TankerDayDetailPage() {
     const [showSnapshotModal, setShowSnapshotModal] = useState(false)
     const [showRefillModal, setShowRefillModal] = useState(false)
     const [showTripModal, setShowTripModal] = useState(false)
+    const [showPodModal, setShowPodModal] = useState(false)
+    const [showCancelModal, setShowCancelModal] = useState(false)
+    const [showDeliveryModal, setShowDeliveryModal] = useState(false)
+    const [selectedTrip, setSelectedTrip] = useState<TripDetail | null>(null)
 
     // Trip form state - per-compartment allocation
-    const [tripCompartments, setTripCompartments] = useState<Record<string, number>>(
-        Object.fromEntries(TANKER_COMPARTMENTS.map(c => [c.id, 0]))
-    )
+    const [tripForm, setTripForm] = useState({
+        driver: '',
+        porter: '',
+        customer: '',
+        station: '',
+        compartments: {} as Record<string, number>,
+    })
+
+    // Delivery form state
+    const [deliveryForm, setDeliveryForm] = useState<Record<string, number>>({})
+
+    // Cancel reason
+    const [cancelReason, setCancelReason] = useState('')
 
     useEffect(() => {
         const role = localStorage.getItem('userRole')
@@ -115,7 +144,146 @@ export default function TankerDayDetailPage() {
     const canPerformOperations = userRole === 'encoder' || userRole === 'admin'
     const canApprove = userRole === 'validator' || userRole === 'supervisor' || userRole === 'admin'
 
-    const getTotalTripQty = () => Object.values(tripCompartments).reduce((a, b) => a + b, 0)
+    const getTotalTripQty = () => Object.values(tripForm.compartments).reduce((a, b) => a + b, 0)
+
+    // Trip Actions
+    const handleCreateTrip = () => {
+        if (!data) return
+        const newTrip: TripDetail = {
+            id: `trip-${Date.now()}`,
+            tripNumber: data.trips.length + 1,
+            driver: tripForm.driver || data.driver,
+            porter: tripForm.porter || data.porter,
+            customer: tripForm.customer,
+            station: tripForm.station,
+            product: data.compartments.find((c: Compartment) => tripForm.compartments[c.id] > 0)?.product || 'DIESEL',
+            status: 'PENDING',
+            departedAt: null,
+            returnedAt: null,
+            plannedQty: getTotalTripQty(),
+            actualQty: null,
+            variance: null,
+            hasPod: false,
+            podFiles: [],
+            compartmentAllocation: data.compartments.filter((c: Compartment) => tripForm.compartments[c.id] > 0).map((c: Compartment) => ({
+                compartmentId: c.id,
+                name: c.name,
+                plannedQty: tripForm.compartments[c.id],
+                actualQty: null,
+            })),
+        }
+        setData({
+            ...data,
+            trips: [...data.trips, newTrip],
+            summary: {
+                ...data.summary,
+                totalPlanned: data.summary.totalPlanned + newTrip.plannedQty,
+                totalTrips: data.summary.totalTrips + 1,
+            },
+        })
+        setShowTripModal(false)
+        setTripForm({
+            driver: '',
+            porter: '',
+            customer: '',
+            station: '',
+            compartments: Object.fromEntries(data.compartments.map((c: Compartment) => [c.id, 0])),
+        })
+    }
+
+    const handleDepartTrip = (trip: TripDetail) => {
+        if (!data) return
+        setData({
+            ...data,
+            trips: data.trips.map(t =>
+                t.id === trip.id
+                    ? { ...t, status: 'DEPARTED' as const, departedAt: new Date().toISOString() }
+                    : t
+            ),
+        })
+    }
+
+    const handleOpenDelivery = (trip: TripDetail) => {
+        setSelectedTrip(trip)
+        setDeliveryForm(
+            Object.fromEntries(
+                trip.compartmentAllocation.map(ca => [ca.compartmentId, ca.plannedQty])
+            )
+        )
+        setShowDeliveryModal(true)
+    }
+
+    const handleRecordDelivery = () => {
+        if (!data || !selectedTrip) return
+        const totalActual = Object.values(deliveryForm).reduce((a, b) => a + b, 0)
+        const variance = totalActual - selectedTrip.plannedQty
+
+        setData({
+            ...data,
+            trips: data.trips.map(t =>
+                t.id === selectedTrip.id
+                    ? {
+                        ...t,
+                        status: 'RETURNED' as const,
+                        returnedAt: new Date().toISOString(),
+                        actualQty: totalActual,
+                        variance,
+                        compartmentAllocation: t.compartmentAllocation.map(ca => ({
+                            ...ca,
+                            actualQty: deliveryForm[ca.compartmentId] || 0,
+                        })),
+                    }
+                    : t
+            ),
+            summary: {
+                ...data.summary,
+                totalDelivered: data.summary.totalDelivered + totalActual,
+                totalVariance: data.summary.totalVariance + variance,
+                tripsCompleted: data.summary.tripsCompleted + 1,
+            },
+        })
+        setShowDeliveryModal(false)
+        setSelectedTrip(null)
+    }
+
+    const handleOpenCancel = (trip: TripDetail) => {
+        setSelectedTrip(trip)
+        setCancelReason('')
+        setShowCancelModal(true)
+    }
+
+    const handleCancelTrip = () => {
+        if (!data || !selectedTrip) return
+        setData({
+            ...data,
+            trips: data.trips.map(t =>
+                t.id === selectedTrip.id
+                    ? { ...t, status: 'CANCELLED' as const, cancelReason }
+                    : t
+            ),
+        })
+        setShowCancelModal(false)
+        setSelectedTrip(null)
+    }
+
+    const handleOpenPod = (trip: TripDetail) => {
+        setSelectedTrip(trip)
+        setShowPodModal(true)
+    }
+
+    const handleUploadPod = () => {
+        if (!data || !selectedTrip) return
+        setData({
+            ...data,
+            trips: data.trips.map(t =>
+                t.id === selectedTrip.id
+                    ? { ...t, hasPod: true, podFiles: [...t.podFiles, `POD_${selectedTrip.tripNumber}_${Date.now()}.jpg`] }
+                    : t
+            ),
+        })
+        setShowPodModal(false)
+        setSelectedTrip(null)
+    }
 
     const getStatusBadge = (status: string) => {
         const styles: Record<string, string> = {
@@ -125,11 +293,18 @@ export default function TankerDayDetailPage() {
             PENDING: 'bg-gray-100 text-gray-700',
             DEPARTED: 'bg-blue-100 text-blue-700',
             RETURNED: 'bg-green-100 text-green-700',
+            CANCELLED: 'bg-red-100 text-red-700',
         }
+        const icons: Record<string, typeof Clock> = {
+            PENDING: Clock,
+            DEPARTED: Play,
+            RETURNED: CheckCircle,
+            CANCELLED: Ban,
+        }
+        const Icon = icons[status]
         return (
-            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.OPEN}`}>
-                {status === 'LOCKED' && <Lock className="h-3 w-3" />}
-                {status === 'RETURNED' && <CheckCircle className="h-3 w-3" />}
+            <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${styles[status] || styles.PENDING}`}>
+                {Icon && <Icon className="h-3 w-3" />}
                 {status}
             </span>
         )
@@ -210,10 +385,10 @@ export default function TankerDayDetailPage() {
                     )}
                     {data.status === 'SUBMITTED' && canApprove && (
                         <>
-                            <button className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors font-medium text-sm">
+                            <button className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium text-sm">
                                 Return
                             </button>
-                            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium text-sm flex items-center gap-2">
+                            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm flex items-center gap-2">
                                 <Lock className="h-4 w-4" />
                                 Approve & Lock
                             </button>
@@ -226,7 +401,7 @@ export default function TankerDayDetailPage() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Left Column - Operations & Trips */}
                 <div className="lg:col-span-2 space-y-6">
-                    {/* Operations Actions - Only for Encoder/Admin */}
+                    {/* Operations Actions */}
                     {canPerformOperations && data.status === 'OPEN' && (
                         <div className="bg-white rounded-xl border border-gray-100 p-6">
                             <h3 className="font-semibold text-gray-900 mb-4">Operations</h3>
@@ -256,19 +431,19 @@ export default function TankerDayDetailPage() {
                         </div>
                     )}
 
-                    {/* Trips List with Details */}
+                    {/* Trips List */}
                     <div className="bg-white rounded-xl border border-gray-100 p-6">
                         <h3 className="font-semibold text-gray-900 mb-4">Trips ({data.trips.length})</h3>
                         <div className="space-y-3">
                             {data.trips.map((trip) => (
-                                <div key={trip.id} className="border border-gray-100 rounded-lg overflow-hidden">
+                                <div key={trip.id} className={`border rounded-lg overflow-hidden ${trip.status === 'CANCELLED' ? 'border-red-200 bg-red-50/30' : 'border-gray-100'}`}>
                                     {/* Trip Header */}
                                     <button
                                         onClick={() => setExpandedTrip(expandedTrip === trip.id ? null : trip.id)}
                                         className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
                                     >
                                         <div className="flex items-center gap-4">
-                                            <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center text-yellow-700 font-bold text-sm">
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${trip.status === 'CANCELLED' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'}`}>
                                                 #{trip.tripNumber}
                                             </div>
                                             <div className="text-left">
@@ -280,9 +455,7 @@ export default function TankerDayDetailPage() {
                                             <div className="text-right">
                                                 {trip.actualQty !== null ? (
                                                     <>
-                                                        <div className="text-sm text-gray-500">
-                                                            Planned: {trip.plannedQty.toLocaleString()}L
-                                                        </div>
+                                                        <div className="text-sm text-gray-500">Planned: {trip.plannedQty.toLocaleString()}L</div>
                                                         <div className="text-sm font-bold text-gray-900">
                                                             Actual: {trip.actualQty.toLocaleString()}L
                                                             {trip.variance !== null && trip.variance !== 0 && (
@@ -307,19 +480,16 @@ export default function TankerDayDetailPage() {
                                     {/* Expanded Trip Details */}
                                     {expandedTrip === trip.id && (
                                         <div className="border-t border-gray-100 p-4 bg-gray-50">
+                                            {trip.status === 'CANCELLED' && trip.cancelReason && (
+                                                <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+                                                    <strong>Cancelled:</strong> {trip.cancelReason}
+                                                </div>
+                                            )}
                                             <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                                                <div>
-                                                    <span className="text-gray-500">Driver:</span> {trip.driver}
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">Porter:</span> {trip.porter}
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">Product:</span> {trip.product}
-                                                </div>
-                                                <div>
-                                                    <span className="text-gray-500">POD:</span> {trip.hasPod ? '✓ Uploaded' : 'Missing'}
-                                                </div>
+                                                <div><span className="text-gray-500">Driver:</span> {trip.driver}</div>
+                                                <div><span className="text-gray-500">Porter:</span> {trip.porter}</div>
+                                                <div><span className="text-gray-500">Product:</span> {trip.product}</div>
+                                                <div><span className="text-gray-500">POD:</span> {trip.hasPod ? `✓ ${trip.podFiles.length} file(s)` : 'Missing'}</div>
                                             </div>
 
                                             {/* Compartment Allocation */}
@@ -335,9 +505,7 @@ export default function TankerDayDetailPage() {
                                                                         {ca.actualQty !== null ? `${ca.actualQty.toLocaleString()}L` : `${ca.plannedQty.toLocaleString()}L`}
                                                                     </div>
                                                                     {ca.actualQty !== null && ca.actualQty !== ca.plannedQty && (
-                                                                        <div className="text-xs text-gray-500">
-                                                                            (planned: {ca.plannedQty.toLocaleString()}L)
-                                                                        </div>
+                                                                        <div className="text-xs text-gray-500">(planned: {ca.plannedQty.toLocaleString()}L)</div>
                                                                     )}
                                                                 </div>
                                                             </div>
@@ -345,10 +513,70 @@ export default function TankerDayDetailPage() {
                                                     </div>
                                                 </div>
                                             )}
+
+                                            {/* Trip Actions */}
+                                            {canPerformOperations && data.status === 'OPEN' && trip.status !== 'CANCELLED' && (
+                                                <div className="mt-4 pt-4 border-t border-gray-200 flex flex-wrap gap-2">
+                                                    {trip.status === 'PENDING' && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleDepartTrip(trip)}
+                                                                className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-blue-700"
+                                                            >
+                                                                <Play className="h-3 w-3" /> Depart
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleOpenCancel(trip)}
+                                                                className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-red-200"
+                                                            >
+                                                                <Ban className="h-3 w-3" /> Cancel
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    {trip.status === 'DEPARTED' && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleOpenDelivery(trip)}
+                                                                className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-green-700"
+                                                            >
+                                                                <Package className="h-3 w-3" /> Record Delivery
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleOpenCancel(trip)}
+                                                                className="px-3 py-1.5 bg-red-100 text-red-700 rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-red-200"
+                                                            >
+                                                                <Ban className="h-3 w-3" /> Cancel
+                                                            </button>
+                                                        </>
+                                                    )}
+                                                    {trip.status === 'RETURNED' && !trip.hasPod && (
+                                                        <button
+                                                            onClick={() => handleOpenPod(trip)}
+                                                            className="px-3 py-1.5 bg-purple-600 text-white rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-purple-700"
+                                                        >
+                                                            <Upload className="h-3 w-3" /> Upload POD
+                                                        </button>
+                                                    )}
+                                                    {trip.status === 'RETURNED' && trip.hasPod && (
+                                                        <button
+                                                            onClick={() => handleOpenPod(trip)}
+                                                            className="px-3 py-1.5 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-gray-200"
+                                                        >
+                                                            <FileText className="h-3 w-3" /> View/Add POD
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
                             ))}
+                            {data.trips.length === 0 && (
+                                <div className="text-center py-8 text-gray-500">
+                                    <MapPin className="h-12 w-12 mx-auto text-gray-300 mb-2" />
+                                    <p>No trips created yet. Click "New Trip" to add one.</p>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -400,18 +628,14 @@ export default function TankerDayDetailPage() {
                         <p className="text-xs text-gray-500 mb-3">Each trip may assign different crew</p>
                         <div className="space-y-3">
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-50 rounded-lg">
-                                    <User className="h-4 w-4 text-blue-600" />
-                                </div>
+                                <div className="p-2 bg-blue-50 rounded-lg"><User className="h-4 w-4 text-blue-600" /></div>
                                 <div>
                                     <div className="text-xs text-gray-500">Driver</div>
                                     <div className="text-sm font-medium text-gray-900">{data.driver}</div>
                                 </div>
                             </div>
                             <div className="flex items-center gap-3">
-                                <div className="p-2 bg-green-50 rounded-lg">
-                                    <User className="h-4 w-4 text-green-600" />
-                                </div>
+                                <div className="p-2 bg-green-50 rounded-lg"><User className="h-4 w-4 text-green-600" /></div>
                                 <div>
                                     <div className="text-xs text-gray-500">Porter</div>
                                     <div className="text-sm font-medium text-gray-900">{data.porter}</div>
@@ -438,37 +662,30 @@ export default function TankerDayDetailPage() {
                                     <span className="font-bold">{data.summary.totalVariance > 0 ? '+' : ''}{data.summary.totalVariance.toLocaleString()} L</span>
                                 </div>
                             )}
-                            <div className="border-t border-gray-100 pt-4">
-                                <div className="flex justify-between items-center">
-                                    <span className="text-gray-500">Trips</span>
-                                    <span className="font-bold text-gray-900">{data.summary.tripsCompleted}/{data.summary.totalTrips}</span>
-                                </div>
+                            <div className="border-t border-gray-100 pt-4 flex justify-between items-center">
+                                <span className="text-gray-500">Trips</span>
+                                <span className="font-bold text-gray-900">{data.summary.tripsCompleted}/{data.summary.totalTrips}</span>
                             </div>
                             {data.summary.exceptions > 0 && (
                                 <div className="flex justify-between items-center text-red-600">
-                                    <span className="flex items-center gap-1">
-                                        <AlertTriangle className="h-4 w-4" />
-                                        Exceptions
-                                    </span>
+                                    <span className="flex items-center gap-1"><AlertTriangle className="h-4 w-4" />Exceptions</span>
                                     <span className="font-bold">{data.summary.exceptions}</span>
                                 </div>
                             )}
                         </div>
                     </div>
 
-                    {/* Tanker Compartments Info */}
+                    {/* Tanker Compartments */}
                     <div className="bg-white rounded-xl border border-gray-100 p-6">
                         <h3 className="font-semibold text-gray-900 mb-4">Compartments</h3>
                         <div className="space-y-3">
-                            {TANKER_COMPARTMENTS.map(comp => (
+                            {data.compartments.map((comp: Compartment) => (
                                 <div key={comp.id} className="flex justify-between items-center">
                                     <div className="flex items-center gap-2">
                                         <div className={`w-3 h-3 rounded-full ${comp.product === 'DIESEL' ? 'bg-blue-500' : 'bg-green-500'}`} />
                                         <span className="font-medium text-gray-700">{comp.name}</span>
                                     </div>
-                                    <div className="text-sm text-gray-500">
-                                        {comp.maxVolume.toLocaleString()}L max • {comp.product}
-                                    </div>
+                                    <div className="text-sm text-gray-500">{comp.maxVolume.toLocaleString()}L • {comp.product}</div>
                                 </div>
                             ))}
                         </div>
@@ -477,50 +694,24 @@ export default function TankerDayDetailPage() {
             </div>
 
             {/* Snapshot Modal */}
-            <Modal
-                isOpen={showSnapshotModal}
-                onClose={() => setShowSnapshotModal(false)}
-                title="Record Snapshot"
-            >
+            <Modal isOpen={showSnapshotModal} onClose={() => setShowSnapshotModal(false)} title="Record Snapshot">
                 <div className="space-y-4">
-                    <p className="text-sm text-gray-600">
-                        Record the current fuel levels in all compartments.
-                    </p>
-                    {TANKER_COMPARTMENTS.map((comp) => (
+                    <p className="text-sm text-gray-600">Record the current fuel levels in all compartments.</p>
+                    {data.compartments.map((comp: Compartment) => (
                         <div key={comp.id}>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                {comp.name} - {comp.product} (Max: {comp.maxVolume.toLocaleString()}L)
-                            </label>
-                            <input
-                                type="number"
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                placeholder="Enter liters"
-                            />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">{comp.name} - {comp.product} (Max: {comp.maxVolume.toLocaleString()}L)</label>
+                            <input type="number" className="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="Enter liters" />
                         </div>
                     ))}
                     <div className="flex gap-3 pt-4">
-                        <button
-                            onClick={() => setShowSnapshotModal(false)}
-                            className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={() => setShowSnapshotModal(false)}
-                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                        >
-                            Save Snapshot
-                        </button>
+                        <button onClick={() => setShowSnapshotModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                        <button onClick={() => setShowSnapshotModal(false)} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Save Snapshot</button>
                     </div>
                 </div>
             </Modal>
 
             {/* Refill Modal */}
-            <Modal
-                isOpen={showRefillModal}
-                onClose={() => setShowRefillModal(false)}
-                title="Record Refill"
-            >
+            <Modal isOpen={showRefillModal} onClose={() => setShowRefillModal(false)} title="Record Refill">
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Depot</label>
@@ -530,115 +721,76 @@ export default function TankerDayDetailPage() {
                             <option>Depot Laguna</option>
                         </select>
                     </div>
-                    {TANKER_COMPARTMENTS.map((comp) => (
+                    {data.compartments.map((comp: Compartment) => (
                         <div key={comp.id}>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                {comp.name} - {comp.product}
-                            </label>
-                            <input
-                                type="number"
-                                className="w-full px-3 py-2 border border-gray-200 rounded-lg"
-                                placeholder="Liters added"
-                            />
+                            <label className="block text-sm font-medium text-gray-700 mb-1">{comp.name} - {comp.product}</label>
+                            <input type="number" className="w-full px-3 py-2 border border-gray-200 rounded-lg" placeholder="Liters added" />
                         </div>
                     ))}
                     <div className="flex gap-3 pt-4">
-                        <button
-                            onClick={() => setShowRefillModal(false)}
-                            className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={() => setShowRefillModal(false)}
-                            className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-                        >
-                            Save Refill
-                        </button>
+                        <button onClick={() => setShowRefillModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                        <button onClick={() => setShowRefillModal(false)} className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Save Refill</button>
                     </div>
                 </div>
             </Modal>
 
-            {/* New Trip Modal with Per-Compartment Allocation */}
-            <Modal
-                isOpen={showTripModal}
-                onClose={() => setShowTripModal(false)}
-                title="Create New Trip"
-                size="lg"
-            >
+            {/* New Trip Modal */}
+            <Modal isOpen={showTripModal} onClose={() => setShowTripModal(false)} title="Create New Trip" size="lg">
                 <div className="space-y-4">
                     {/* Crew Selection */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Driver</label>
-                            <select className="w-full px-3 py-2 border border-gray-200 rounded-lg">
-                                <option value="">Select driver...</option>
-                                <option>Juan Cruz</option>
-                                <option>Pedro Santos</option>
-                                <option>Maria Garcia</option>
-                                <option>Jose Reyes</option>
+                            <select value={tripForm.driver} onChange={(e) => setTripForm({ ...tripForm, driver: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg">
+                                <option value="">Use default ({data.driver})</option>
+                                {DRIVERS.map(d => <option key={d} value={d}>{d}</option>)}
                             </select>
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Porter</label>
-                            <select className="w-full px-3 py-2 border border-gray-200 rounded-lg">
-                                <option value="">Select porter...</option>
-                                <option>Carlos Lopez</option>
-                                <option>Ana Mendez</option>
-                                <option>Luis Torres</option>
-                                <option>Rosa Fernandez</option>
+                            <select value={tripForm.porter} onChange={(e) => setTripForm({ ...tripForm, porter: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg">
+                                <option value="">Use default ({data.porter})</option>
+                                {PORTERS.map(p => <option key={p} value={p}>{p}</option>)}
                             </select>
                         </div>
                     </div>
-
                     {/* Customer & Station */}
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
-                            <select className="w-full px-3 py-2 border border-gray-200 rounded-lg">
+                            <select value={tripForm.customer} onChange={(e) => setTripForm({ ...tripForm, customer: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg">
                                 <option value="">Select customer...</option>
-                                <option>Shell Philippines</option>
-                                <option>Petron Corporation</option>
-                                <option>Caltex Philippines</option>
-                                <option>Phoenix Petroleum</option>
+                                {CUSTOMERS.map(c => <option key={c} value={c}>{c}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Site/Station</label>
-                            <select className="w-full px-3 py-2 border border-gray-200 rounded-lg">
-                                <option value="">Select site...</option>
-                                <option>Shell EDSA</option>
-                                <option>Shell Ortigas</option>
-                                <option>Petron Makati</option>
-                                <option>Caltex BGC</option>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Station</label>
+                            <select value={tripForm.station} onChange={(e) => setTripForm({ ...tripForm, station: e.target.value })} className="w-full px-3 py-2 border border-gray-200 rounded-lg">
+                                <option value="">Select station...</option>
+                                {STATIONS.map(s => <option key={s} value={s}>{s}</option>)}
                             </select>
                         </div>
                     </div>
-
                     {/* Compartment Allocation */}
                     <div className="border-t border-gray-100 pt-4">
-                        <label className="block text-sm font-medium text-gray-900 mb-3">
-                            Allocate from Compartments
-                        </label>
+                        <label className="block text-sm font-medium text-gray-900 mb-3">Allocate from Compartments</label>
                         <div className="space-y-3">
-                            {TANKER_COMPARTMENTS.map((comp) => (
+                            {data.compartments.map((comp: Compartment) => (
                                 <div key={comp.id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
                                     <div className="flex items-center gap-2 min-w-24">
                                         <div className={`w-3 h-3 rounded-full ${comp.product === 'DIESEL' ? 'bg-blue-500' : 'bg-green-500'}`} />
                                         <span className="font-medium text-gray-700">{comp.name}</span>
                                     </div>
-                                    <div className="text-xs text-gray-500 min-w-20">
-                                        {comp.product}
-                                    </div>
+                                    <div className="text-xs text-gray-500 min-w-20">{comp.product}</div>
                                     <div className="flex-1">
                                         <input
                                             type="number"
                                             min="0"
                                             max={comp.maxVolume}
-                                            value={tripCompartments[comp.id] || 0}
-                                            onChange={(e) => setTripCompartments({
-                                                ...tripCompartments,
-                                                [comp.id]: parseInt(e.target.value) || 0
+                                            value={tripForm.compartments[comp.id] || 0}
+                                            onChange={(e) => setTripForm({
+                                                ...tripForm,
+                                                compartments: { ...tripForm.compartments, [comp.id]: parseInt(e.target.value) || 0 }
                                             })}
                                             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-right"
                                             placeholder="0"
@@ -648,33 +800,137 @@ export default function TankerDayDetailPage() {
                                 </div>
                             ))}
                         </div>
-                        {/* Total */}
-                        <div className="flex justify-between items-center mt-4 p-3 bg-blue-50 rounded-lg">
+                        <div className="mt-3 p-3 bg-blue-50 rounded-lg flex justify-between items-center">
                             <span className="font-semibold text-blue-900">Total Planned Quantity</span>
                             <span className="text-xl font-bold text-blue-600">{getTotalTripQty().toLocaleString()} L</span>
                         </div>
                     </div>
-
                     <div className="flex gap-3 pt-4">
-                        <button
-                            onClick={() => {
-                                setShowTripModal(false)
-                                setTripCompartments(Object.fromEntries(TANKER_COMPARTMENTS.map(c => [c.id, 0])))
-                            }}
-                            className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
-                        >
-                            Cancel
+                        <button onClick={() => setShowTripModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                        <button onClick={handleCreateTrip} disabled={getTotalTripQty() === 0 || !tripForm.customer || !tripForm.station} className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed">
+                            <Plus className="h-4 w-4 inline mr-2" />Create Trip ({getTotalTripQty().toLocaleString()}L)
                         </button>
-                        <button
-                            onClick={() => {
-                                setShowTripModal(false)
-                                setTripCompartments(Object.fromEntries(TANKER_COMPARTMENTS.map(c => [c.id, 0])))
-                            }}
-                            disabled={getTotalTripQty() === 0}
-                            className="flex-1 px-4 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <Plus className="h-4 w-4 inline mr-2" />
-                            Create Trip ({getTotalTripQty().toLocaleString()}L)
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Record Delivery Modal */}
+            <Modal isOpen={showDeliveryModal} onClose={() => setShowDeliveryModal(false)} title="Record Delivery & Return" size="lg">
+                <div className="space-y-4">
+                    {selectedTrip && (
+                        <>
+                            <div className="p-4 bg-gray-50 rounded-lg">
+                                <div className="font-medium text-gray-900">Trip #{selectedTrip.tripNumber} - {selectedTrip.station}</div>
+                                <div className="text-sm text-gray-500">{selectedTrip.customer} • Planned: {selectedTrip.plannedQty.toLocaleString()}L</div>
+                            </div>
+                            <p className="text-sm text-gray-600">Enter the actual quantity delivered from each compartment:</p>
+                            {selectedTrip.compartmentAllocation.map(ca => (
+                                <div key={ca.compartmentId} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex items-center gap-2 min-w-24">
+                                        <span className="font-medium text-gray-700">{ca.name}</span>
+                                    </div>
+                                    <div className="text-xs text-gray-500 min-w-20">Planned: {ca.plannedQty.toLocaleString()}L</div>
+                                    <div className="flex-1">
+                                        <input
+                                            type="number"
+                                            min="0"
+                                            value={deliveryForm[ca.compartmentId] || 0}
+                                            onChange={(e) => setDeliveryForm({
+                                                ...deliveryForm,
+                                                [ca.compartmentId]: parseInt(e.target.value) || 0
+                                            })}
+                                            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-right"
+                                        />
+                                    </div>
+                                    <span className="text-sm text-gray-400 w-8">L</span>
+                                </div>
+                            ))}
+                            <div className="mt-3 p-3 bg-green-50 rounded-lg flex justify-between items-center">
+                                <span className="font-semibold text-green-900">Total Actual Delivered</span>
+                                <span className="text-xl font-bold text-green-600">{Object.values(deliveryForm).reduce((a, b) => a + b, 0).toLocaleString()} L</span>
+                            </div>
+                        </>
+                    )}
+                    <div className="flex gap-3 pt-4">
+                        <button onClick={() => setShowDeliveryModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Cancel</button>
+                        <button onClick={handleRecordDelivery} className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2">
+                            <CheckCircle className="h-4 w-4" /> Record Delivery
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Cancel Trip Modal */}
+            <Modal isOpen={showCancelModal} onClose={() => setShowCancelModal(false)} title="Cancel Trip" size="sm">
+                <div className="space-y-4">
+                    {selectedTrip && (
+                        <div className="p-4 bg-red-50 rounded-lg text-red-800">
+                            <div className="font-medium">Trip #{selectedTrip.tripNumber} - {selectedTrip.station}</div>
+                            <div className="text-sm">{selectedTrip.plannedQty.toLocaleString()}L planned</div>
+                        </div>
+                    )}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">Reason for Cancellation</label>
+                        <textarea
+                            value={cancelReason}
+                            onChange={(e) => setCancelReason(e.target.value)}
+                            className="w-full px-3 py-2 border border-gray-200 rounded-lg"
+                            rows={3}
+                            placeholder="e.g. Customer request, equipment issue, etc."
+                        />
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                        <button onClick={() => setShowCancelModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Keep Trip</button>
+                        <button onClick={handleCancelTrip} disabled={!cancelReason} className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50 flex items-center justify-center gap-2">
+                            <Ban className="h-4 w-4" /> Cancel Trip
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* POD Upload Modal */}
+            <Modal isOpen={showPodModal} onClose={() => setShowPodModal(false)} title="Proof of Delivery" size="lg">
+                <div className="space-y-4">
+                    {selectedTrip && (
+                        <>
+                            <div className="p-4 bg-purple-50 rounded-lg">
+                                <div className="font-medium text-purple-900">Trip #{selectedTrip.tripNumber} - {selectedTrip.station}</div>
+                                <div className="text-sm text-purple-700">{selectedTrip.customer} • Delivered: {selectedTrip.actualQty?.toLocaleString() || 0}L</div>
+                            </div>
+
+                            {/* Existing PODs */}
+                            {selectedTrip.podFiles.length > 0 && (
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">Uploaded Documents</label>
+                                    <div className="space-y-2">
+                                        {selectedTrip.podFiles.map((file, idx) => (
+                                            <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                <div className="flex items-center gap-2">
+                                                    <FileText className="h-5 w-5 text-green-500" />
+                                                    <span className="text-sm text-gray-700">{file}</span>
+                                                </div>
+                                                <button className="text-xs text-blue-600 hover:text-blue-800">View</button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Upload New */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">Upload New Document</label>
+                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-purple-400 transition-colors cursor-pointer">
+                                    <Upload className="h-10 w-10 mx-auto text-gray-400 mb-3" />
+                                    <p className="text-sm text-gray-500">Drag and drop files here, or click to browse</p>
+                                    <p className="text-xs text-gray-400 mt-1">Supports: JPG, PNG, PDF (max 10MB)</p>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                    <div className="flex gap-3 pt-4">
+                        <button onClick={() => setShowPodModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Close</button>
+                        <button onClick={handleUploadPod} className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center justify-center gap-2">
+                            <Upload className="h-4 w-4" /> Upload POD
                         </button>
                     </div>
                 </div>

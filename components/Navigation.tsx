@@ -68,7 +68,8 @@ export function Navigation() {
 
                     {/* Center Navigation Tabs */}
                     <div className="flex items-center gap-2">
-                        <NavTab href="/dashboard" label="Fleet Dashboard" isActive={pathname === '/dashboard' || pathname.startsWith('/tanker-days')} />
+                        <NavTab href="/dashboard" label="Dashboard" isActive={pathname === '/dashboard' || pathname.startsWith('/tanker-days')} />
+                        <NavTab href="/fleet-status" label="Fleet Status" isActive={pathname === '/fleet-status'} />
                         <NavTab href="/trips" label="Trips" isActive={pathname === '/trips'} />
                         <NavTab href="/reports" label="Reports" isActive={pathname.startsWith('/reports')} />
                         {user?.role === 'admin' && (

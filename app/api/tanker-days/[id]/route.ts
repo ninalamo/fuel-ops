@@ -1,6 +1,44 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { format, addHours, subHours } from 'date-fns'
 
+// Mock tanker configurations (data-driven compartments)
+const TANKER_CONFIGS: Record<string, { plateNumber: string; compartments: Array<{ id: string; name: string; maxVolume: number; product: string }> }> = {
+    'tanker-1': {
+        plateNumber: 'ABC-1234',
+        compartments: [
+            { id: 'c1', name: 'C1', maxVolume: 7500, product: 'DIESEL' },
+            { id: 'c2', name: 'C2', maxVolume: 7500, product: 'DIESEL' },
+            { id: 'c3', name: 'C3', maxVolume: 7500, product: 'UNLEADED' },
+            { id: 'c4', name: 'C4', maxVolume: 7500, product: 'UNLEADED' },
+        ],
+    },
+    'tanker-2': {
+        plateNumber: 'XYZ-5678',
+        compartments: [
+            { id: 'c1', name: 'C1', maxVolume: 8500, product: 'DIESEL' },
+            { id: 'c2', name: 'C2', maxVolume: 8500, product: 'DIESEL' },
+            { id: 'c3', name: 'C3', maxVolume: 8000, product: 'UNLEADED' },
+        ],
+    },
+    'tanker-3': {
+        plateNumber: 'DEF-9012',
+        compartments: [
+            { id: 'c1', name: 'C1', maxVolume: 10000, product: 'DIESEL' },
+            { id: 'c2', name: 'C2', maxVolume: 10000, product: 'DIESEL' },
+        ],
+    },
+    'tanker-4': {
+        plateNumber: 'GHI-3456',
+        compartments: [
+            { id: 'c1', name: 'C1', maxVolume: 7000, product: 'DIESEL' },
+            { id: 'c2', name: 'C2', maxVolume: 7000, product: 'DIESEL' },
+            { id: 'c3', name: 'C3', maxVolume: 7000, product: 'UNLEADED' },
+            { id: 'c4', name: 'C4', maxVolume: 7000, product: 'UNLEADED' },
+            { id: 'c5', name: 'C5', maxVolume: 7000, product: 'PREMIUM' },
+        ],
+    },
+}
+
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ id: string }> }
@@ -9,16 +47,23 @@ export async function GET(
         const { id } = await params
         const today = new Date()
 
-        // Generate mock tanker day detail with enhanced trip data
+        // Extract tanker id from the tanker day id (e.g., "td-2026-01-06-tanker-1" -> "tanker-1")
+        const tankerIdMatch = id.match(/tanker-\d+/)
+        const tankerId = tankerIdMatch ? tankerIdMatch[0] : 'tanker-1'
+        const tankerConfig = TANKER_CONFIGS[tankerId] || TANKER_CONFIGS['tanker-1']
+
+        // Generate mock tanker day detail with data-driven compartments
         const data = {
             id,
             date: format(today, 'yyyy-MM-dd'),
-            plateNumber: id.includes('tanker-1') ? 'ABC-1234' :
-                id.includes('tanker-2') ? 'XYZ-5678' :
-                    id.includes('tanker-3') ? 'DEF-9012' : 'GHI-3456',
+            plateNumber: tankerConfig.plateNumber,
+            tankerId,
             driver: 'Juan Cruz',
             porter: 'Carlos Lopez',
-            status: 'OPEN',
+            status: 'OPEN', // OPEN, SUBMITTED, LOCKED
+
+            // Data-driven compartments from tanker configuration
+            compartments: tankerConfig.compartments,
 
             // Trips with per-compartment allocation and planned vs actual
             trips: [
@@ -37,6 +82,7 @@ export async function GET(
                     actualQty: 4300,
                     variance: -200,
                     hasPod: true,
+                    podFiles: ['POD_1_delivery.jpg'],
                     compartmentAllocation: [
                         { compartmentId: 'c1', name: 'C1', plannedQty: 2500, actualQty: 2400 },
                         { compartmentId: 'c2', name: 'C2', plannedQty: 2000, actualQty: 1900 },
@@ -49,7 +95,7 @@ export async function GET(
                     porter: 'Ana Mendez',
                     customer: 'Petron Corporation',
                     station: 'Petron Makati',
-                    product: 'UNLEADED 91',
+                    product: 'UNLEADED',
                     status: 'RETURNED',
                     departedAt: subHours(today, 2).toISOString(),
                     returnedAt: subHours(today, 1).toISOString(),
@@ -57,6 +103,7 @@ export async function GET(
                     actualQty: 3800,
                     variance: -200,
                     hasPod: true,
+                    podFiles: ['POD_2_delivery.jpg'],
                     compartmentAllocation: [
                         { compartmentId: 'c3', name: 'C3', plannedQty: 2000, actualQty: 1900 },
                         { compartmentId: 'c4', name: 'C4', plannedQty: 2000, actualQty: 1900 },
@@ -77,6 +124,7 @@ export async function GET(
                     actualQty: null,
                     variance: null,
                     hasPod: false,
+                    podFiles: [],
                     compartmentAllocation: [
                         { compartmentId: 'c1', name: 'C1', plannedQty: 3000, actualQty: null },
                         { compartmentId: 'c2', name: 'C2', plannedQty: 2000, actualQty: null },
@@ -91,7 +139,7 @@ export async function GET(
                     type: 'SNAPSHOT' as const,
                     title: 'Opening Snapshot',
                     description: 'Recorded opening fuel levels',
-                    details: 'C1: 500L, C2: 800L, C3: 200L, C4: 450L',
+                    details: tankerConfig.compartments.map(c => `${c.name}: 500L`).join(', '),
                     timestamp: subHours(today, 6).toISOString(),
                     status: 'COMPLETED' as const,
                 },
@@ -99,8 +147,8 @@ export async function GET(
                     id: 'evt-2',
                     type: 'REFILL' as const,
                     title: 'Depot Refill #1',
-                    description: 'Loaded 28,000L at Depot Manila',
-                    details: 'C1: +7000L, C2: +6700L, C3: +7300L, C4: +7050L',
+                    description: `Loaded ${tankerConfig.compartments.reduce((sum, c) => sum + c.maxVolume, 0).toLocaleString()}L at Depot Manila`,
+                    details: tankerConfig.compartments.map(c => `${c.name}: +${c.maxVolume}L`).join(', '),
                     timestamp: subHours(today, 5).toISOString(),
                     status: 'COMPLETED' as const,
                 },
@@ -115,15 +163,6 @@ export async function GET(
                 },
                 {
                     id: 'evt-4',
-                    type: 'REFILL' as const,
-                    title: 'Depot Refill #2',
-                    description: 'Loaded 15,000L at Depot Manila',
-                    details: 'C3: +7500L, C4: +7500L',
-                    timestamp: subHours(today, 2.5).toISOString(),
-                    status: 'COMPLETED' as const,
-                },
-                {
-                    id: 'evt-5',
                     type: 'TRIP' as const,
                     title: 'Trip #2 - Petron Makati',
                     description: 'Planned: 4,000L | Actual: 3,800L | Variance: -200L',
@@ -132,7 +171,7 @@ export async function GET(
                     status: 'COMPLETED' as const,
                 },
                 {
-                    id: 'evt-6',
+                    id: 'evt-5',
                     type: 'TRIP' as const,
                     title: 'Trip #3 - Caltex BGC (Pending)',
                     description: 'Planned: 5,000L Diesel',
@@ -150,6 +189,15 @@ export async function GET(
                 totalTrips: 3,
                 exceptions: 0,
             },
+
+            // Business rule flags
+            canEdit: true, // Will be false for LOCKED status
+            isCurrentDay: true, // Used for day-only restrictions
+        }
+
+        // Apply business rules
+        if (data.status === 'LOCKED' || data.status === 'SUBMITTED') {
+            data.canEdit = false
         }
 
         return NextResponse.json(data)
