@@ -16,9 +16,7 @@ export function getOperationsService(): IOperationsService {
         return new JsonServerOperationsService()
     }
 
-    if (useJsonServer) {
-        return new JsonServerOperationsService()
-    }
+
 
     // Default to Mock for now (or if user wants explicit mock mode)
     if (!mockServiceInstance) {
