@@ -31,6 +31,7 @@ export async function GET(request: NextRequest) {
                 programId: 'Program ID',
                 runId: 'Run ID',
                 station: 'Station',
+                stationId: 'Station ID',
                 product: 'Product',
                 actualLiters: 'Actual Liters',
                 drReference: 'DR Reference',

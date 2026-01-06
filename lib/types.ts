@@ -31,6 +31,84 @@ export type ExceptionSeverity =
     | 'HIGH'
     | 'CRITICAL'
 
+// ===== OPERATIONAL TYPES =====
+
+export interface Compartment {
+    id: string
+    name: string
+    maxVolume: number
+    product: string
+}
+
+export interface CompartmentAllocation {
+    compartmentId: string
+    name: string
+    startQty: number
+    refillQty: number
+    totalQty: number
+    plannedQty: number
+    actualQty: number | null
+}
+
+export interface TripDetail {
+    tripId: string // Used by API
+    id: string     // Alias for tripId (used by UI)
+    tripNumber: string
+    tankerId: string
+    driver: string
+    porter: string
+    station: string
+    customer: string
+    eta: string
+    status: string // 'PENDING' | 'IN_TRANSIT' | 'COMPLETED' | 'CANCELLED'
+    compartmentAllocation: CompartmentAllocation[]
+
+    // Support multiple products per trip
+    products: string[]
+
+    // Timestamps
+    departedAt: string | null
+    returnedAt: string | null
+
+    plannedQty: number
+    actualQty: number | null
+    variance: number | null
+    hasPod: boolean
+    podFiles: string[]
+    cancelReason?: string
+}
+
+export interface TimelineEvent {
+    id: string
+    type: 'SNAPSHOT' | 'REFILL' | 'TRIP'
+    title: string
+    description: string
+    details?: string
+    timestamp: string
+    status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING'
+}
+
+export interface TankerDayDetail {
+    id: string
+    date: string
+    tankerId: string
+    plateNumber: string
+    driver: string
+    porter: string
+    status: 'OPEN' | 'SUBMITTED' | 'RETURNED' | 'LOCKED'
+    compartments: Compartment[]
+    trips: TripDetail[]
+    timeline: TimelineEvent[]
+    summary: {
+        totalPlanned: number
+        totalDelivered: number
+        totalVariance: number
+        tripsCompleted: number
+        totalTrips: number
+        exceptions: number
+    }
+}
+
 // Report filter types
 export interface ReportFilters {
     dateFrom: string // YYYY-MM-DD

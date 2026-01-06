@@ -27,6 +27,9 @@ export async function GET(request: NextRequest) {
 
         if (format === 'csv') {
             const csv = CsvExporter.convertToCSV(data, {
+                id: 'ID',
+                runId: 'Run ID',
+                programId: 'Program ID',
                 runNumber: 'Run Number',
                 date: 'Date',
                 tanker: 'Tanker',

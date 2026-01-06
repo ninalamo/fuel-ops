@@ -28,76 +28,14 @@ import {
     Package
 } from 'lucide-react'
 import { Modal } from '@/components/Modal'
-
-// Compartment interface
-interface Compartment {
-    id: string
-    name: string
-    maxVolume: number
-    product: string
-}
+import { TankerDayDetail, TripDetail, Compartment, TimelineEvent } from '@/lib/types'
 
 const CUSTOMERS = ['Shell Philippines', 'Petron Corporation', 'Caltex Philippines', 'Phoenix Petroleum']
 const STATIONS = ['Shell EDSA', 'Shell Ortigas', 'Petron Makati', 'Caltex BGC', 'Phoenix Alabang']
 const DRIVERS = ['Juan Cruz', 'Pedro Santos', 'Maria Garcia', 'Jose Reyes']
 const PORTERS = ['Carlos Lopez', 'Ana Mendez', 'Luis Torres', 'Rosa Fernandez']
 
-interface TripDetail {
-    id: string
-    tripNumber: number
-    driver: string
-    porter: string
-    customer: string
-    station: string
-    product: string
-    status: 'PENDING' | 'DEPARTED' | 'RETURNED' | 'CANCELLED'
-    departedAt: string | null
-    returnedAt: string | null
-    plannedQty: number
-    actualQty: number | null
-    variance: number | null
-    hasPod: boolean
-    podFiles: string[]
-    compartmentAllocation: Array<{
-        compartmentId: string;
-        name: string;
-        startQty: number;      // Snapshot/Opening balance
-        refillQty: number;     // Additional liters added
-        totalQty: number;      // Total available (start + refill)
-        plannedQty: number;
-        actualQty: number | null
-    }>
-    cancelReason?: string
-}
-
-interface TankerDayDetail {
-    id: string
-    date: string
-    plateNumber: string
-    driver: string
-    porter: string
-    status: string
-    compartments: Compartment[]  // Data-driven from API
-    trips: TripDetail[]
-    timeline: Array<{
-        id: string
-        type: 'SNAPSHOT' | 'REFILL' | 'TRIP'
-        title: string
-        description: string
-        details?: string
-        timestamp: string
-        status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING'
-    }>
-    summary: {
-        totalPlanned: number
-        totalDelivered: number
-        totalVariance: number
-        tripsCompleted: number
-        totalTrips: number
-        exceptions: number
-    }
-    canEdit: boolean  // Business rule flag
-}
+// Local interfaces replaced by imports from '@/lib/types'
 
 export default function TankerDayDetailPage() {
     const params = useParams()
@@ -205,14 +143,21 @@ export default function TankerDayDetailPage() {
     const handleCreateTrip = () => {
         if (!data) return
         const newTrip: TripDetail = {
+            tripId: `trip-${Date.now()}`,
             id: `trip-${Date.now()}`,
-            tripNumber: data.trips.length + 1,
+            tripNumber: (data.trips.length + 1).toString(),
+            tankerId: data.tankerId,
             driver: tripForm.driver || data.driver,
             porter: tripForm.porter || data.porter,
+            eta: '00:00',
             customer: tripForm.customer,
             station: tripForm.station,
-            // Determine primary product (simple heuristic)
-            product: data.compartments.find((c: Compartment) => tripForm.compartments[c.id]?.plannedQty > 0)?.product || 'DIESEL',
+            products: Array.from(new Set(
+                Object.keys(tripForm.compartments)
+                    .filter(id => tripForm.compartments[id].plannedQty > 0)
+                    .map(id => data.compartments.find((c: Compartment) => c.id === id)?.product)
+                    .filter((p): p is string => !!p)
+            )),
             status: 'PENDING',
             departedAt: null,
             returnedAt: null,
@@ -533,7 +478,7 @@ export default function TankerDayDetailPage() {
                                             <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                                                 <div><span className="text-gray-500">Driver:</span> {trip.driver}</div>
                                                 <div><span className="text-gray-500">Porter:</span> {trip.porter}</div>
-                                                <div><span className="text-gray-500">Product:</span> {trip.product}</div>
+                                                <div><span className="text-gray-500">Product:</span> {trip.products.join(', ')}</div>
                                                 <div><span className="text-gray-500">POD:</span> {trip.hasPod ? `✓ ${trip.podFiles.length} file(s)` : 'Missing'}</div>
                                             </div>
 

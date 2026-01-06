@@ -18,7 +18,7 @@ export class CsvExporter {
 
         const rows = data.map((row) => {
             return fields.map((field) => {
-                let value = row[field]
+                let value: any = row[field]
 
                 // Handle different data types
                 if (value === null || value === undefined) {

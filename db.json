@@ -1,0 +1,126 @@
+{
+    "tankerDays": [
+        {
+            "id": "td-2026-01-06-tanker-1",
+            "date": "2026-01-06",
+            "tankerId": "tanker-1",
+            "plateNumber": "ABC-1234",
+            "driver": "Mock Driver",
+            "porter": "Mock Porter",
+            "status": "OPEN",
+            "compartments": [
+                {
+                    "id": "comp-tanker-1-1",
+                    "name": "Comp 1",
+                    "maxVolume": 7500,
+                    "product": "DIESEL"
+                },
+                {
+                    "id": "comp-tanker-1-2",
+                    "name": "Comp 2",
+                    "maxVolume": 7500,
+                    "product": "DIESEL"
+                },
+                {
+                    "id": "comp-tanker-1-3",
+                    "name": "Comp 3",
+                    "maxVolume": 7500,
+                    "product": "DIESEL"
+                },
+                {
+                    "id": "comp-tanker-1-4",
+                    "name": "Comp 4",
+                    "maxVolume": 7500,
+                    "product": "DIESEL"
+                }
+            ],
+            "trips": [],
+            "timeline": [],
+            "summary": {
+                "totalPlanned": 0,
+                "totalDelivered": 0,
+                "totalVariance": 0,
+                "tripsCompleted": 0,
+                "totalTrips": 0,
+                "exceptions": 0
+            }
+        },
+        {
+            "id": "td-2026-01-06-tanker-4",
+            "date": "2026-01-06",
+            "tankerId": "tanker-4",
+            "plateNumber": "GHI-3456",
+            "driver": "Mock Driver",
+            "porter": "Mock Porter",
+            "status": "LOCKED",
+            "compartments": [
+                {
+                    "id": "comp-tanker-4-1",
+                    "name": "Comp 1",
+                    "maxVolume": 4000,
+                    "product": "GASOLINE"
+                },
+                {
+                    "id": "comp-tanker-4-2",
+                    "name": "Comp 2",
+                    "maxVolume": 4000,
+                    "product": "GASOLINE"
+                },
+                {
+                    "id": "comp-tanker-4-3",
+                    "name": "Comp 3",
+                    "maxVolume": 4000,
+                    "product": "GASOLINE"
+                },
+                {
+                    "id": "comp-tanker-4-4",
+                    "name": "Comp 4",
+                    "maxVolume": 4000,
+                    "product": "GASOLINE"
+                },
+                {
+                    "id": "comp-tanker-4-5",
+                    "name": "Comp 5",
+                    "maxVolume": 4000,
+                    "product": "GASOLINE"
+                }
+            ],
+            "trips": [
+                {
+                    "tripId": "trip-mock-1",
+                    "id": "trip-mock-1",
+                    "tripNumber": "1",
+                    "tankerId": "tanker-4",
+                    "driver": "Mock Driver",
+                    "porter": "Mock Porter",
+                    "station": "Shell EDSA",
+                    "customer": "Shell",
+                    "eta": "10:00 AM",
+                    "status": "COMPLETED",
+                    "compartmentAllocation": [],
+                    "products": [
+                        "GASOLINE"
+                    ],
+                    "plannedQty": 5000,
+                    "actualQty": 5000,
+                    "variance": 0,
+                    "hasPod": true,
+                    "podFiles": [
+                        "pod-mock-1.jpg"
+                    ],
+                    "departedAt": "2026-01-06T13:00:00.000Z",
+                    "returnedAt": "2026-01-06T15:00:00.000Z"
+                }
+            ],
+            "timeline": [],
+            "summary": {
+                "totalPlanned": 5000,
+                "totalDelivered": 5000,
+                "totalVariance": 0,
+                "tripsCompleted": 1,
+                "totalTrips": 1,
+                "exceptions": 0
+            }
+        }
+    ]
+}

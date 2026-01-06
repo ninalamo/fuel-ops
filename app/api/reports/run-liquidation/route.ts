@@ -29,7 +29,10 @@ export async function GET(request: NextRequest) {
 
         if (format === 'csv') {
             const csv = CsvExporter.convertToCSV(data, {
+                runId: 'Run ID',
                 runNumber: 'Run Number',
+                startTime: 'Start Time',
+                endTime: 'End Time',
                 date: 'Date',
                 tanker: 'Tanker',
                 driver: 'Driver',

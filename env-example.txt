@@ -1,0 +1,7 @@
+# JSON Server Config (Use this!)
+USE_JSON_SERVER="true"
+JSON_SERVER_URL="http://localhost:3001"
+USE_MOCK_DATA="false"
+
+# Legacy Supabase (Ignore for now)
+DATABASE_URL="postgresql://postgres:placeholder@localhost:5432/postgres"
