@@ -76,10 +76,16 @@ export default function TankerDayDetailPage() {
         setLoading(true)
         try {
             const res = await fetch(`/api/tanker-days/${params.id}`)
+            if (!res.ok) {
+                console.error('Failed to fetch:', res.status, res.statusText)
+                setData(null)
+                return
+            }
             const result = await res.json()
             setData(result)
         } catch (error) {
             console.error('Error fetching tanker day:', error)
+            setData(null)
         } finally {
             setLoading(false)
         }

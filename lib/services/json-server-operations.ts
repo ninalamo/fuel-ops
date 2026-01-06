@@ -10,7 +10,9 @@ export class JsonServerOperationsService implements IOperationsService {
     }
 
     private async fetchJson<T>(endpoint: string, options?: RequestInit): Promise<T> {
-        const res = await fetch(`${this.baseUrl}${endpoint}`, {
+        const url = `${this.baseUrl}${endpoint}`
+        console.log('[JsonServer] Fetching:', url)
+        const res = await fetch(url, {
             cache: 'no-store',
             ...options
         })
