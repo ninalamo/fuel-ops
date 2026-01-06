@@ -1,0 +1,289 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== USER & AUTH =====
+
+enum UserRole {
+  MANAGEMENT
+  AUDIT
+  DISPATCHER
+  PORTER
+  SUPERVISOR
+  DRIVER
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  drivenRuns         DispatchRun[]      @relation("DriverToRuns")
+  porteredRuns       DispatchRun[]      @relation("PorterToRuns")
+  auditLogs          AuditLog[]
+  exceptionsCleared  Exception[]
+  createdPrograms    DailyProgram[]
+}
+
+// ===== MASTER DATA =====
+
+model Tanker {
+  id           String   @id @default(cuid())
+  plateNumber  String   @unique
+  capacity     Int      // in liters
+  status       String   @default("ACTIVE") // ACTIVE, MAINTENANCE, RETIRED
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  dailyPrograms DailyProgram[]
+  runs          DispatchRun[]
+}
+
+model Station {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  address     String?
+  gpsLat      Float?
+  gpsLng      Float?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  drops       Drop[]
+}
+
+model FuelType {
+  id          String   @id @default(cuid())
+  code        String   @unique // e.g., "DIESEL", "UNLEADED91", "UNLEADED95"
+  name        String
+  color       String?  // Hex color for UI display
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  drops       Drop[]
+  uplifts     Uplift[]
+  heels       Heel[]
+}
+
+// ===== DAILY PROGRAMS =====
+
+enum ProgramStatus {
+  DRAFT
+  APPROVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model DailyProgram {
+  id            String         @id @default(cuid())
+  date          DateTime       @db.Date
+  tankerId      String
+  tanker        Tanker         @relation(fields: [tankerId], references: [id])
+  status        ProgramStatus  @default(DRAFT)
+  createdById   String
+  createdBy     User           @relation(fields: [createdById], references: [id])
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  // Relations
+  runs          DispatchRun[]
+  exceptions    Exception[]
+
+  @@unique([date, tankerId])
+  @@index([date])
+  @@index([tankerId])
+  @@index([status])
+}
+
+// ===== DISPATCH RUNS =====
+
+enum RunStatus {
+  PENDING
+  IN_TRANSIT
+  COMPLETED
+  CANCELLED
+}
+
+model DispatchRun {
+  id              String         @id @default(cuid())
+  runNumber       String         // e.g., "RUN-001-20260106"
+  dailyProgramId  String
+  dailyProgram    DailyProgram   @relation(fields: [dailyProgramId], references: [id], onDelete: Cascade)
+  tankerId        String
+  tanker          Tanker         @relation(fields: [tankerId], references: [id])
+  driverId        String
+  driver          User           @relation("DriverToRuns", fields: [driverId], references: [id])
+  porterId        String
+  porter          User           @relation("PorterToRuns", fields: [porterId], references: [id])
+  status          RunStatus      @default(PENDING)
+  
+  // Timestamps
+  startTime       DateTime?
+  endTime         DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  // Relations
+  uplifts         Uplift[]
+  drops           Drop[]
+  heels           Heel[]
+  exceptions      Exception[]
+
+  @@unique([runNumber])
+  @@index([dailyProgramId])
+  @@index([tankerId])
+  @@index([driverId])
+  @@index([porterId])
+  @@index([status])
+}
+
+// ===== UPLIFT (Loading) =====
+
+model Uplift {
+  id            String      @id @default(cuid())
+  runId         String
+  run           DispatchRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  fuelTypeId    String
+  fuelType      FuelType    @relation(fields: [fuelTypeId], references: [id])
+  plannedLiters Int
+  actualLiters  Int?
+  depot         String?     // Depot name
+  timestamp     DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  @@index([runId])
+  @@index([fuelTypeId])
+}
+
+// ===== DROP (Delivery) =====
+
+model Drop {
+  id            String      @id @default(cuid())
+  runId         String
+  run           DispatchRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  stationId     String
+  station       Station     @relation(fields: [stationId], references: [id])
+  fuelTypeId    String
+  fuelType      FuelType    @relation(fields: [fuelTypeId], references: [id])
+  sequenceNo    Int         // Order of delivery in the run
+  plannedLiters Int
+  actualLiters  Int?
+  drReference   String?     // Delivery Receipt number
+  podReference  String?     // Proof of Delivery reference
+  timestamp     DateTime?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relations
+  podAttachments PODAttachment[]
+
+  @@index([runId])
+  @@index([stationId])
+  @@index([fuelTypeId])
+}
+
+// ===== POD ATTACHMENTS =====
+
+model PODAttachment {
+  id          String   @id @default(cuid())
+  dropId      String
+  drop        Drop     @relation(fields: [dropId], references: [id], onDelete: Cascade)
+  fileName    String
+  fileUrl     String
+  fileType    String   // e.g., "image/jpeg", "application/pdf"
+  uploadedAt  DateTime @default(now())
+
+  @@index([dropId])
+}
+
+// ===== HEEL (Remaining fuel) =====
+
+model Heel {
+  id            String      @id @default(cuid())
+  runId         String
+  run           DispatchRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  fuelTypeId    String
+  fuelType      FuelType    @relation(fields: [fuelTypeId], references: [id])
+  actualLiters  Int
+  expectedLiters Int?      // Calculated expected heel
+  variance      Int?       // Difference (actual - expected)
+  timestamp     DateTime?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([runId])
+  @@index([fuelTypeId])
+}
+
+// ===== EXCEPTIONS =====
+
+enum ExceptionType {
+  VARIANCE
+  MISSING_POD
+  LATE_DELIVERY
+  OTHER
+}
+
+enum ExceptionSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Exception {
+  id              String             @id @default(cuid())
+  runId           String?
+  run             DispatchRun?       @relation(fields: [runId], references: [id], onDelete: Cascade)
+  programId       String?
+  program         DailyProgram?      @relation(fields: [programId], references: [id], onDelete: Cascade)
+  type            ExceptionType
+  severity        ExceptionSeverity  @default(MEDIUM)
+  message         String
+  details         Json?              // Additional structured data
+  createdAt       DateTime           @default(now())
+  clearedAt       DateTime?
+  clearedById     String?
+  clearedBy       User?              @relation(fields: [clearedById], references: [id])
+
+  @@index([runId])
+  @@index([programId])
+  @@index([type])
+  @@index([severity])
+  @@index([clearedAt]) // For filtering uncleared exceptions
+}
+
+// ===== AUDIT LOG =====
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  action        String   // e.g., "CREATE", "UPDATE", "DELETE", "EXPORT"
+  resourceType  String   // e.g., "PROGRAM", "RUN", "REPORT"
+  resourceId    String?
+  changesJson   Json?    // Store filter params for exports, or changed fields
+  timestamp     DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([resourceType])
+  @@index([timestamp])
+}
