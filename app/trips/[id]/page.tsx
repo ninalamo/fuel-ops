@@ -432,13 +432,30 @@ export default function TripDetailPage() {
         <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Header */}
             <div className="mb-6">
-                <Link
-                    href={userRole === 'encoder' ? `/tanker-days/${trip.tankerDayId}` : '/trips'}
-                    className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-2"
-                >
-                    <ArrowLeft className="h-4 w-4" />
-                    {userRole === 'encoder' ? `Back to ${trip.tanker} (${format(new Date(trip.date), 'MMM d, yyyy')})` : 'Back to Trips'}
-                </Link>
+                {/* Breadcrumb */}
+                <nav className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                    {userRole === 'encoder' ? (
+                        <>
+                            <Link href="/fleet-status" className="hover:text-gray-900">
+                                Tanker Operations
+                            </Link>
+                            <span className="text-gray-400">/</span>
+                            <Link href={`/tanker-days/${trip.tankerDayId}`} className="hover:text-gray-900">
+                                {trip.tanker}
+                            </Link>
+                            <span className="text-gray-400">/</span>
+                            <span className="text-gray-900 font-medium">Trip #{trip.tripNumber}</span>
+                        </>
+                    ) : (
+                        <>
+                            <Link href="/trips" className="hover:text-gray-900">
+                                Trips
+                            </Link>
+                            <span className="text-gray-400">/</span>
+                            <span className="text-gray-900 font-medium">Trip #{trip.tripNumber}</span>
+                        </>
+                    )}
+                </nav>
                 <div className="flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">

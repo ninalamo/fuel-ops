@@ -34,26 +34,23 @@ interface TankerDay {
 }
 
 interface DashboardStats {
-    totalTankers: number
-    open: number
+    fleetTotal: number
+    tankerDaysOpen: number
     submitted: number
     locked: number
 }
 
-// Mock tankers for selection
-const AVAILABLE_TANKERS = [
-    { id: 'tanker-1', plateNumber: 'ABC-1234', capacity: 30000, compartments: 4 },
-    { id: 'tanker-2', plateNumber: 'XYZ-5678', capacity: 25000, compartments: 3 },
-    { id: 'tanker-3', plateNumber: 'DEF-9012', capacity: 20000, compartments: 2 },
-    { id: 'tanker-4', plateNumber: 'GHI-3456', capacity: 35000, compartments: 5 },
-]
-
-const AVAILABLE_DRIVERS = ['Juan Cruz', 'Pedro Santos', 'Maria Garcia', 'Jose Reyes', 'Miguel Torres']
-const AVAILABLE_PORTERS = ['Carlos Lopez', 'Ana Mendez', 'Luis Torres', 'Rosa Fernandez']
+interface Tanker {
+    id: string
+    plateNumber: string
+    capacity: number
+    compartments: number
+}
 
 export default function DashboardPage() {
     const [tankerDays, setTankerDays] = useState<TankerDay[]>([])
-    const [stats, setStats] = useState<DashboardStats>({ totalTankers: 0, open: 0, submitted: 0, locked: 0 })
+    const [allTankers, setAllTankers] = useState<Tanker[]>([])
+    const [stats, setStats] = useState<DashboardStats>({ fleetTotal: 0, tankerDaysOpen: 0, submitted: 0, locked: 0 })
     const [loading, setLoading] = useState(true)
     const [businessDate, setBusinessDate] = useState(format(new Date(), 'yyyy-MM-dd'))
     const [userRole, setUserRole] = useState<string | null>(null)
@@ -81,10 +78,27 @@ export default function DashboardPage() {
     const fetchData = async () => {
         setLoading(true)
         try {
+            // Fetch tanker days for the date
             const res = await fetch(`/api/tanker-days?date=${businessDate}`)
             const data = await res.json()
             setTankerDays(data.tankerDays)
-            setStats(data.stats)
+
+            // Fetch all tankers from master data
+            const tankersRes = await fetch('http://localhost:3001/tankers')
+            const tankers = await tankersRes.json()
+            setAllTankers(tankers)
+
+            // Calculate stats
+            const openCount = data.tankerDays.filter((td: TankerDay) => td.status === 'OPEN').length
+            const submittedCount = data.tankerDays.filter((td: TankerDay) => td.status === 'SUBMITTED').length
+            const lockedCount = data.tankerDays.filter((td: TankerDay) => td.status === 'LOCKED').length
+
+            setStats({
+                fleetTotal: tankers.length,
+                tankerDaysOpen: openCount,
+                submitted: submittedCount,
+                locked: lockedCount
+            })
         } catch (error) {
             console.error('Error fetching data:', error)
         } finally {
@@ -111,7 +125,7 @@ export default function DashboardPage() {
 
             const newTankerDay = await res.json()
             setTankerDays([...tankerDays, newTankerDay])
-            setStats({ ...stats, totalTankers: stats.totalTankers + 1, open: stats.open + 1 })
+            setStats({ ...stats, tankerDaysOpen: stats.tankerDaysOpen + 1 })
             setShowCreateModal(false)
             setCreateForm({ tankerId: '' })
         } catch (error) {
@@ -120,31 +134,30 @@ export default function DashboardPage() {
         }
     }
 
-    const handleBulkCreate = () => {
+    const handleBulkCreate = async () => {
         const assignedIds = tankerDays.map(td => td.tankerId)
-        const toCreate = AVAILABLE_TANKERS.filter(t => !assignedIds.includes(t.id))
+        const toCreate = allTankers.filter((t: Tanker) => !assignedIds.includes(t.id))
 
         if (toCreate.length === 0) return
 
-        const newDays: TankerDay[] = toCreate.map(t => ({
-            id: `td-${businessDate}-${t.id}`,
-            date: businessDate,
-            tankerId: t.id,
-            plateNumber: t.plateNumber,
-            driver: '',
-            status: 'OPEN',
-            tripsCompleted: 0,
-            totalTrips: 0,
-            litersDelivered: 0,
-            hasExceptions: false,
-        }))
+        // Create tanker days via API for each available tanker
+        for (const tanker of toCreate) {
+            try {
+                await fetch('/api/tanker-days', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        date: businessDate,
+                        tankerId: tanker.id
+                    })
+                })
+            } catch (error) {
+                console.error(`Failed to create tanker day for ${tanker.plateNumber}:`, error)
+            }
+        }
 
-        setTankerDays([...tankerDays, ...newDays])
-        setStats({
-            ...stats,
-            totalTankers: stats.totalTankers + newDays.length,
-            open: stats.open + newDays.length
-        })
+        // Refresh data
+        fetchData()
     }
 
     const getStatusBadge = (status: string) => {
@@ -196,7 +209,8 @@ export default function DashboardPage() {
 
     // Get tankers already assigned today
     const assignedTankerIds = tankerDays.map(td => td.tankerId)
-    const availableTankersForDay = AVAILABLE_TANKERS.filter(t => !assignedTankerIds.includes(t.id))
+    const availableTankersForDay = allTankers.filter((t: Tanker) => !assignedTankerIds.includes(t.id))
+    const isToday = businessDate === format(new Date(), 'yyyy-MM-dd')
 
     const getRoleTitle = () => {
         switch (userRole) {
@@ -237,31 +251,37 @@ export default function DashboardPage() {
                     </div>
                     {/* Create Tanker Day Button - Only for Encoder/Admin and current day */}
                     {(userRole === 'encoder' || userRole === 'admin') && (
-                        <div className="flex gap-2">
-                            <button
-                                onClick={handleBulkCreate}
-                                disabled={businessDate !== format(new Date(), 'yyyy-MM-dd') || availableTankersForDay.length === 0}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${businessDate !== format(new Date(), 'yyyy-MM-dd') || availableTankersForDay.length === 0
-                                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
-                                    : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'
-                                    }`}
-                                title="Open days for all unassigned tankers"
-                            >
-                                <Layers className="h-4 w-4" />
-                                Bulk Open ({availableTankersForDay.length})
-                            </button>
-                            <button
-                                onClick={() => setShowCreateModal(true)}
-                                disabled={businessDate !== format(new Date(), 'yyyy-MM-dd')}
-                                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${businessDate !== format(new Date(), 'yyyy-MM-dd')
-                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                                    }`}
-                                title={businessDate !== format(new Date(), 'yyyy-MM-dd') ? 'Tanker days can only be created for today' : ''}
-                            >
-                                <Plus className="h-4 w-4" />
-                                Create Tanker Day
-                            </button>
+                        <div className="flex flex-col items-end gap-2">
+                            {!isToday && (
+                                <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded">
+                                    Dispatch only available for today
+                                </span>
+                            )}
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={handleBulkCreate}
+                                    disabled={!isToday || availableTankersForDay.length === 0}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${!isToday || availableTankersForDay.length === 0
+                                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                        : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'
+                                        }`}
+                                    title="Dispatch all available tankers"
+                                >
+                                    <Layers className="h-4 w-4" />
+                                    Bulk Dispatch ({availableTankersForDay.length})
+                                </button>
+                                <button
+                                    onClick={() => setShowCreateModal(true)}
+                                    disabled={!isToday || availableTankersForDay.length === 0}
+                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${!isToday || availableTankersForDay.length === 0
+                                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                                        }`}
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    Dispatch Tanker
+                                </button>
+                            </div>
                         </div>
                     )}
                 </div>
@@ -269,10 +289,10 @@ export default function DashboardPage() {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <StatCard label="Total Tankers" value={stats.totalTankers} color="blue" />
+                <StatCard label="Fleet Total" value={stats.fleetTotal} color="blue" />
                 <StatCard
-                    label="Open"
-                    value={stats.open}
+                    label="Dispatched Today"
+                    value={stats.tankerDaysOpen}
                     color="sky"
                     highlight={userRole === 'encoder'}
                 />
@@ -447,7 +467,7 @@ export default function DashboardPage() {
                             </div>
                         ) : (
                             <div className="grid grid-cols-2 gap-3">
-                                {availableTankersForDay.map(tanker => (
+                                {availableTankersForDay.map((tanker: Tanker) => (
                                     <button
                                         key={tanker.id}
                                         onClick={() => setCreateForm({ ...createForm, tankerId: tanker.id })}
@@ -483,7 +503,7 @@ export default function DashboardPage() {
                             className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                         >
                             <Plus className="h-4 w-4" />
-                            Create Tanker Day
+                            Dispatch Tanker
                         </button>
                     </div>
                 </div>

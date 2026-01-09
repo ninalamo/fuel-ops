@@ -365,14 +365,14 @@ export default function TankerDayDetailPage() {
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Back Link */}
-            <Link
-                href="/fleet-status"
-                className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
-            >
-                <ArrowLeft className="h-4 w-4" />
-                Back to Tanker Operations
-            </Link>
+            {/* Breadcrumb */}
+            <nav className="flex items-center gap-2 text-sm text-gray-600 mb-6">
+                <Link href="/fleet-status" className="hover:text-gray-900">
+                    Tanker Operations
+                </Link>
+                <span className="text-gray-400">/</span>
+                <span className="text-gray-900 font-medium">{data.plateNumber}</span>
+            </nav>
 
             {/* Header */}
             <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
