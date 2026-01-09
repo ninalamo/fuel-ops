@@ -86,8 +86,14 @@ export function Navigation() {
                     {/* Center Navigation Tabs */}
                     <div className="flex items-center gap-2">
                         <NavTab href="/fleet-status" label="Dashboard" isActive={pathname === '/fleet-status'} />
-                        <NavTab href="/dashboard" label="Fleet Status" isActive={pathname === '/dashboard' || pathname.startsWith('/tanker-days')} />
-                        <NavTab href="/trips" label="Trips" isActive={pathname === '/trips'} />
+                        <NavTab
+                            href="/dashboard"
+                            label={user?.role === 'supervisor' ? 'Fleet Review' : 'Fleet Status'}
+                            isActive={pathname === '/dashboard' || pathname.startsWith('/tanker-days')}
+                        />
+                        {user?.role !== 'encoder' && (
+                            <NavTab href="/trips" label="Trips" isActive={pathname === '/trips'} />
+                        )}
                         {user?.role !== 'encoder' && (
                             <NavTab href="/reports" label="Reports" isActive={pathname.startsWith('/reports')} />
                         )}

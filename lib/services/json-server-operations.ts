@@ -54,7 +54,15 @@ export class JsonServerOperationsService implements IOperationsService {
     async getTankerDay(id: string): Promise<TankerDayDetail | null> {
         try {
             const days = await this.fetchJson<TankerDayDetail[]>(`/tankerDays?id=${id}`)
-            return days[0] || null
+            if (!days[0]) return null
+
+            // Also fetch trips for this tanker day from the trips collection
+            const trips = await this.fetchJson<TripDetail[]>(`/trips?tankerDayId=${id}`)
+
+            return {
+                ...days[0],
+                trips: trips || []
+            }
         } catch (error) {
             console.error('Error fetching tanker day:', error)
             return null

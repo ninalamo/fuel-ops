@@ -64,9 +64,17 @@ export default function DashboardPage() {
         tankerId: '',
     })
 
+    // Filter state
+    const [filterStatus, setFilterStatus] = useState<string>('ALL')
+    const [filterTanker, setFilterTanker] = useState('')
+
     useEffect(() => {
         const role = localStorage.getItem('userRole')
         setUserRole(role)
+        // Default to SUBMITTED filter for supervisor
+        if (role === 'supervisor') {
+            setFilterStatus('SUBMITTED')
+        }
         fetchData()
     }, [businessDate])
 
@@ -164,12 +172,25 @@ export default function DashboardPage() {
         )
     }
 
-    // Filter tanker days based on role
+    // Filter tanker days based on role and user filters
     const filteredTankerDays = tankerDays.filter(td => {
+        // Role-based filtering for supervisor
         if (userRole === 'supervisor') {
-            // Supervisor sees Submitted and Locked records
-            return td.status === 'SUBMITTED' || td.status === 'LOCKED'
+            if (td.status !== 'SUBMITTED' && td.status !== 'LOCKED') {
+                return false
+            }
         }
+
+        // Status filter
+        if (filterStatus !== 'ALL' && td.status !== filterStatus) {
+            return false
+        }
+
+        // Tanker name filter (case-insensitive search)
+        if (filterTanker && !td.plateNumber.toLowerCase().includes(filterTanker.toLowerCase())) {
+            return false
+        }
+
         return true
     })
 
@@ -180,7 +201,7 @@ export default function DashboardPage() {
     const getRoleTitle = () => {
         switch (userRole) {
             case 'encoder': return 'Fleet Status'
-            case 'supervisor': return 'Fleet Status - Review Queue'
+            case 'supervisor': return 'Fleet Review'
             case 'admin': return 'Fleet Status - Admin'
             default: return 'Fleet Status'
         }
@@ -262,6 +283,45 @@ export default function DashboardPage() {
                     highlight={userRole === 'supervisor'}
                 />
                 <StatCard label="Locked" value={stats.locked} color="green" />
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 mb-6">
+                <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Status:</label>
+                    <select
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="ALL">All Statuses</option>
+                        <option value="OPEN">Open</option>
+                        <option value="SUBMITTED">Submitted</option>
+                        <option value="LOCKED">Locked</option>
+                    </select>
+                </div>
+                <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Tanker:</label>
+                    <input
+                        type="text"
+                        value={filterTanker}
+                        onChange={(e) => setFilterTanker(e.target.value)}
+                        placeholder="Search plate number..."
+                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
+                    />
+                </div>
+                {(filterStatus !== 'ALL' || filterTanker) && (
+                    <button
+                        onClick={() => {
+                            setFilterStatus('ALL')
+                            setFilterTanker('')
+                        }}
+                        className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
+                    >
+                        <X className="h-4 w-4" />
+                        Clear filters
+                    </button>
+                )}
             </div>
 
             {/* Tanker Operations Table */}

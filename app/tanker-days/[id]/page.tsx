@@ -63,6 +63,8 @@ export default function TankerDayDetailPage() {
 
     // Delivery form state
     const [deliveryForm, setDeliveryForm] = useState<Record<string, number>>({})
+    const [deliveryPodFiles, setDeliveryPodFiles] = useState<File[]>([])
+    const [showNoPodWarning, setShowNoPodWarning] = useState(false)
 
     // Cancel reason
     const [cancelReason, setCancelReason] = useState('')

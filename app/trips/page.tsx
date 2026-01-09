@@ -28,9 +28,9 @@ interface Trip {
     station: string
     products: string[]
     quantity: number
-    status: 'PENDING' | 'DEPARTED' | 'DELIVERED' | 'RETURNED'
+    status: 'PENDING' | 'EN_ROUTE' | 'COMPLETED'
     departedAt: string | null
-    deliveredAt: string | null
+    completedAt: string | null
     hasPod: boolean
     hasException: boolean
 }
@@ -63,21 +63,27 @@ export default function TripsPage() {
     const getStatusBadge = (status: string) => {
         const styles: Record<string, string> = {
             PENDING: 'bg-gray-100 text-gray-700',
-            DEPARTED: 'bg-blue-100 text-blue-700',
-            DELIVERED: 'bg-green-100 text-green-700',
-            RETURNED: 'bg-purple-100 text-purple-700',
+            EN_ROUTE: 'bg-blue-100 text-blue-700',
+            RETURNED: 'bg-orange-100 text-orange-700',
+            COMPLETED: 'bg-green-100 text-green-700',
         }
         const icons: Record<string, typeof Clock> = {
             PENDING: Clock,
-            DEPARTED: Truck,
-            DELIVERED: CheckCircle,
-            RETURNED: CheckCircle,
+            EN_ROUTE: Truck,
+            RETURNED: Clock,
+            COMPLETED: CheckCircle,
+        }
+        const labels: Record<string, string> = {
+            PENDING: 'Pending',
+            EN_ROUTE: 'En Route',
+            RETURNED: 'Returned',
+            COMPLETED: 'Completed',
         }
         const Icon = icons[status] || Clock
         return (
             <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${styles[status] || styles.PENDING}`}>
                 <Icon className="h-3 w-3" />
-                {status}
+                {labels[status] || status}
             </span>
         )
     }
@@ -96,9 +102,9 @@ export default function TripsPage() {
     const stats = {
         total: filteredTrips.length,
         pending: filteredTrips.filter(t => t.status === 'PENDING').length,
-        departed: filteredTrips.filter(t => t.status === 'DEPARTED').length,
-        delivered: filteredTrips.filter(t => t.status === 'DELIVERED' || t.status === 'RETURNED').length,
-        totalLiters: filteredTrips.reduce((sum, t) => sum + (t.status === 'DELIVERED' || t.status === 'RETURNED' ? t.quantity : 0), 0),
+        enRoute: filteredTrips.filter(t => t.status === 'EN_ROUTE').length,
+        completed: filteredTrips.filter(t => t.status === 'COMPLETED').length,
+        totalLiters: filteredTrips.reduce((sum, t) => sum + (t.status === 'COMPLETED' ? t.quantity : 0), 0),
     }
 
     return (
@@ -189,12 +195,12 @@ export default function TripsPage() {
                             <div className="text-xs text-gray-500">Pending</div>
                         </div>
                         <div className="text-center">
-                            <div className="font-bold text-blue-600">{stats.departed}</div>
-                            <div className="text-xs text-gray-500">In Transit</div>
+                            <div className="font-bold text-blue-600">{stats.enRoute}</div>
+                            <div className="text-xs text-gray-500">En Route</div>
                         </div>
                         <div className="text-center">
-                            <div className="font-bold text-green-600">{stats.delivered}</div>
-                            <div className="text-xs text-gray-500">Delivered</div>
+                            <div className="font-bold text-green-600">{stats.completed}</div>
+                            <div className="text-xs text-gray-500">Completed</div>
                         </div>
                         <div className="text-center">
                             <div className="font-bold text-gray-900">{stats.totalLiters.toLocaleString()}</div>
@@ -288,7 +294,7 @@ export default function TripsPage() {
                                         <td className="px-4 py-3 text-center">
                                             {trip.hasPod ? (
                                                 <CheckCircle className="h-5 w-5 text-green-500 mx-auto" />
-                                            ) : trip.status === 'DELIVERED' || trip.status === 'RETURNED' ? (
+                                            ) : trip.status === 'COMPLETED' ? (
                                                 <AlertTriangle className="h-5 w-5 text-orange-500 mx-auto" />
                                             ) : (
                                                 <span className="text-gray-300">—</span>
