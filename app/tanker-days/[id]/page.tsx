@@ -51,7 +51,10 @@ export default function TankerDayDetailPage() {
     const [showPodModal, setShowPodModal] = useState(false)
     const [showCancelModal, setShowCancelModal] = useState(false)
     const [showDeliveryModal, setShowDeliveryModal] = useState(false)
+    const [showSubmitModal, setShowSubmitModal] = useState(false)
     const [selectedTrip, setSelectedTrip] = useState<TripDetail | null>(null)
+
+
 
     // Trip form state - per-compartment allocation and refill
     const [tripForm, setTripForm] = useState({
@@ -97,6 +100,11 @@ export default function TankerDayDetailPage() {
 
     const canPerformOperations = (userRole === 'encoder' || userRole === 'admin') && data?.status === 'OPEN'
     const canApprove = (userRole === 'supervisor' || userRole === 'admin') && data?.status === 'SUBMITTED'
+
+    const hasTrips = data ? data.trips.length > 0 : false
+    const activeTrips = data ? data.trips.filter(t => t.status !== 'CANCELLED') : []
+    const allActiveTripsCompleted = activeTrips.length > 0 && activeTrips.every(t => t.status === 'COMPLETED')
+    const canSubmit = hasTrips && allActiveTripsCompleted
 
     const getTotalTripQty = () => Object.values(tripForm.compartments).reduce((a, b) => a + b.plannedQty, 0)
 
@@ -406,6 +414,7 @@ export default function TankerDayDetailPage() {
 
             // Add timeline event
             await addToTimeline('Submitted for Review', 'Tanker Day submitted for approval', 'SNAPSHOT')
+            setShowSubmitModal(false)
         } catch (error) {
             console.error('Failed to submit:', error)
         }
@@ -535,8 +544,12 @@ export default function TankerDayDetailPage() {
                 <div className="flex gap-3">
                     {data.status === 'OPEN' && canPerformOperations && (
                         <button
-                            onClick={handleSubmitForReview}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2"
+                            onClick={() => setShowSubmitModal(true)}
+                            disabled={!canSubmit}
+                            className={`px-4 py-2 text-white rounded-lg transition-colors font-medium text-sm flex items-center gap-2 ${!canSubmit
+                                ? 'bg-gray-300 cursor-not-allowed'
+                                : 'bg-blue-600 hover:bg-blue-700'
+                                }`}
                         >
                             <Send className="h-4 w-4" />
                             Submit for Review
@@ -871,67 +884,90 @@ export default function TankerDayDetailPage() {
                     {/* Compartment Allocation, Refill & Planning */}
                     <div className="border-t border-gray-100 pt-4">
                         <label className="block text-sm font-medium text-gray-900 mb-3">Snapshot & Plan</label>
-                        <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {data.compartments.map((comp: Compartment) => {
                                 const state = tripForm.compartments[comp.id] || { startQty: 0, refillQty: 0, plannedQty: 0 }
                                 const totalAvailable = state.startQty + state.refillQty
                                 const isOverAllocated = state.plannedQty > totalAvailable
+                                const maxCapacity = comp.maxVolume
+                                const fillPercentage = Math.min(100, (totalAvailable / maxCapacity) * 100)
+                                const startPercentage = Math.min(100, (state.startQty / maxCapacity) * 100)
 
                                 return (
-                                    <div key={comp.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                                    <div key={comp.id} className="relative flex flex-col p-4 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden group hover:border-blue-300 transition-all">
+                                        {/* Visual Tank Background */}
+                                        <div className="absolute inset-x-0 bottom-0 bg-blue-50/50 transition-all duration-500 ease-out z-0" style={{ height: `${fillPercentage}%` }} />
+
                                         {/* Header */}
-                                        <div className="flex justify-between items-center mb-2">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-3 h-3 rounded-full ${comp.product === 'DIESEL' ? 'bg-blue-500' : 'bg-green-500'}`} />
-                                                <span className="font-medium text-gray-900">{comp.name}</span>
-                                                {/* Product Selector */}
-                                                <select
-                                                    value={state.product || comp.product} // fallback to comp.product if undefined
-                                                    onChange={(e) => {
-                                                        const newProduct = e.target.value
-                                                        setTripForm(prev => ({
-                                                            ...prev,
-                                                            compartments: {
-                                                                ...prev.compartments,
-                                                                [comp.id]: {
-                                                                    ...state,
-                                                                    product: newProduct
-                                                                }
-                                                            }
-                                                        }))
-                                                    }}
-                                                    className="text-xs border-0 bg-transparent py-0 pl-1 pr-6 text-gray-500 focus:ring-0 cursor-pointer font-medium hover:text-blue-600"
-                                                >
-                                                    {PRODUCTS.map(p => (
-                                                        <option key={p} value={p}>{p}</option>
-                                                    ))}
-                                                </select>
+                                        <div className="relative z-10 flex justify-between items-start mb-3">
+                                            <div>
+                                                <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{comp.name}</div>
+                                                <div className="font-bold text-gray-900">{maxCapacity.toLocaleString()}L</div>
                                             </div>
-                                            <div className="text-xs text-gray-400">Max: {comp.maxVolume.toLocaleString()}L</div>
+                                            <div className={`w-2 h-2 rounded-full ${comp.product === 'DIESEL' ? 'bg-blue-500' : 'bg-green-500'}`} />
                                         </div>
 
-                                        {/* Inputs Grid */}
-                                        <div className="grid grid-cols-2 gap-3">
-                                            {/* Current Level */}
-                                            <div>
-                                                <label className="block text-xs font-medium text-gray-500 mb-1">Current</label>
-                                                <input
-                                                    type="number"
-                                                    value={state.startQty}
-                                                    disabled
-                                                    className="w-full px-2 py-1.5 bg-gray-100 border border-gray-200 rounded text-right text-gray-500"
-                                                />
+                                        {/* Dynamic Product Selector */}
+                                        <div className="relative z-10 mb-4">
+                                            <select
+                                                value={state.product || comp.product}
+                                                onChange={(e) => {
+                                                    const newProduct = e.target.value
+                                                    setTripForm(prev => ({
+                                                        ...prev,
+                                                        compartments: {
+                                                            ...prev.compartments,
+                                                            [comp.id]: { ...state, product: newProduct }
+                                                        }
+                                                    }))
+                                                }}
+                                                className="w-full text-xs font-medium bg-white/80 backdrop-blur-sm border border-gray-200 rounded px-2 py-1 focus:ring-1 focus:ring-blue-500"
+                                            >
+                                                {PRODUCTS.map(p => <option key={p} value={p}>{p}</option>)}
+                                            </select>
+                                        </div>
+
+                                        {/* Fill/Refill Controls */}
+                                        <div className="relative z-10 mt-auto space-y-3">
+                                            {/* Current Level Display */}
+                                            <div className="flex justify-between text-xs text-gray-500">
+                                                <span>Current:</span>
+                                                <span className="font-mono">{state.startQty.toLocaleString()}L</span>
                                             </div>
 
-                                            {/* Add/Refill */}
+                                            {/* Refill Input Group */}
                                             <div>
-                                                <label className="block text-xs font-medium text-blue-600 mb-1">+ Refill (Planned)</label>
+                                                <div className="flex justify-between items-end mb-1">
+                                                    <label className="text-xs font-semibold text-blue-700">+ Refill</label>
+                                                    <button
+                                                        onClick={() => {
+                                                            const maxFill = Math.max(0, maxCapacity - state.startQty)
+                                                            setTripForm(prev => ({
+                                                                ...prev,
+                                                                compartments: {
+                                                                    ...prev.compartments,
+                                                                    [comp.id]: {
+                                                                        ...state,
+                                                                        refillQty: maxFill,
+                                                                        plannedQty: maxFill // Auto-sync
+                                                                    }
+                                                                }
+                                                            }))
+                                                        }}
+                                                        className="text-[10px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded hover:bg-blue-200 transition-colors"
+                                                    >
+                                                        MAX
+                                                    </button>
+                                                </div>
                                                 <input
                                                     type="number"
                                                     min="0"
+                                                    max={maxCapacity - state.startQty}
                                                     value={state.refillQty || ''}
                                                     onChange={(e) => {
-                                                        const newVal = Math.max(0, parseInt(e.target.value) || 0)
+                                                        const val = parseInt(e.target.value) || 0
+                                                        // Prevent going below 0
+                                                        const newVal = Math.max(0, val)
                                                         setTripForm(prev => ({
                                                             ...prev,
                                                             compartments: {
@@ -939,23 +975,36 @@ export default function TankerDayDetailPage() {
                                                                 [comp.id]: {
                                                                     ...state,
                                                                     refillQty: newVal,
-                                                                    plannedQty: newVal // Auto-sync: Refill = Planned
+                                                                    plannedQty: newVal
                                                                 }
                                                             }
                                                         }))
                                                     }}
-                                                    className="w-full px-2 py-1.5 border border-blue-200 rounded text-right focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                                                    className="w-full text-right font-mono text-sm px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
                                                     placeholder="0"
                                                 />
                                             </div>
-                                        </div>
 
-                                        {/* Total Available Indicator */}
-                                        <div className="flex justify-between items-center mt-2 text-xs">
-                                            <span className="text-gray-500">Total Available:</span>
-                                            <span className={`font-medium ${isOverAllocated ? 'text-red-600' : 'text-gray-700'}`}>
-                                                {totalAvailable.toLocaleString()} L
-                                            </span>
+                                            {/* Visual Progress Bar */}
+                                            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden flex">
+                                                {/* Start Qty Bar */}
+                                                <div className="h-full bg-gray-400" style={{ width: `${startPercentage}%` }} />
+                                                {/* Refill Qty Bar */}
+                                                <div className="h-full bg-blue-500" style={{ width: `${fillPercentage - startPercentage}%` }} />
+                                            </div>
+
+                                            {/* Total Forecast */}
+                                            <div className="pt-2 border-t border-gray-100 flex justify-between items-center">
+                                                <span className="text-xs text-gray-500">Total:</span>
+                                                <span className={`text-sm font-bold ${totalAvailable > maxCapacity ? 'text-red-600' : 'text-gray-900'}`}>
+                                                    {totalAvailable.toLocaleString()}L
+                                                </span>
+                                            </div>
+                                            {totalAvailable > maxCapacity && (
+                                                <div className="text-[10px] text-red-600 font-medium text-center bg-red-50 py-1 rounded">
+                                                    Over capacity by {(totalAvailable - maxCapacity).toLocaleString()}L
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 )
@@ -1092,6 +1141,31 @@ export default function TankerDayDetailPage() {
                         <button onClick={() => setShowPodModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">Close</button>
                         <button onClick={handleUploadPod} className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 flex items-center justify-center gap-2">
                             <Upload className="h-4 w-4" /> Upload POD
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Submit Confirmation Modal */}
+            <Modal isOpen={showSubmitModal} onClose={() => setShowSubmitModal(false)} title="Submit for Review?" size="sm">
+                <div className="space-y-4">
+                    <div className="p-4 bg-yellow-50 rounded-lg text-yellow-800">
+                        <div className="flex items-start gap-3">
+                            <AlertTriangle className="h-5 w-5 text-yellow-600 shrink-0 mt-0.5" />
+                            <div>
+                                <div className="font-medium">Are you sure?</div>
+                                <div className="text-sm mt-1">
+                                    This will lock the dispatch record for Tanker <strong>{data.plateNumber}</strong>.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex gap-3 pt-4">
+                        <button onClick={() => setShowSubmitModal(false)} className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50">
+                            Cancel
+                        </button>
+                        <button onClick={handleSubmitForReview} className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium">
+                            Submit
                         </button>
                     </div>
                 </div>

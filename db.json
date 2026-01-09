@@ -158,6 +158,68 @@
         "totalTrips": 2,
         "exceptions": 0
       }
+    },
+    {
+      "id": "td-2026-01-10-tanker-1",
+      "date": "2026-01-10",
+      "tankerId": "tanker-1",
+      "plateNumber": "ABC-1234",
+      "driver": "",
+      "porter": "",
+      "status": "OPEN",
+      "compartments": [
+        {
+          "id": "comp-1",
+          "name": "Comp 1",
+          "maxVolume": 7500,
+          "product": ""
+        },
+        {
+          "id": "comp-2",
+          "name": "Comp 2",
+          "maxVolume": 7500,
+          "product": ""
+        },
+        {
+          "id": "comp-3",
+          "name": "Comp 3",
+          "maxVolume": 7500,
+          "product": ""
+        },
+        {
+          "id": "comp-4",
+          "name": "Comp 4",
+          "maxVolume": 7500,
+          "product": ""
+        }
+      ],
+      "trips": [],
+      "timeline": [
+        {
+          "id": "evt-1767995032516",
+          "type": "SNAPSHOT",
+          "title": "Submitted for Review",
+          "description": "Tanker Day submitted for approval",
+          "timestamp": "2026-01-09T21:43:52.516Z",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "evt-1767995052013",
+          "type": "SNAPSHOT",
+          "title": "Returned",
+          "description": "Tanker Day returned for correction",
+          "timestamp": "2026-01-09T21:44:12.013Z",
+          "status": "COMPLETED"
+        }
+      ],
+      "summary": {
+        "totalPlanned": 0,
+        "totalDelivered": 0,
+        "totalVariance": 0,
+        "tripsCompleted": 0,
+        "totalTrips": 0,
+        "exceptions": 0
+      }
     }
   ],
   "trips": [
