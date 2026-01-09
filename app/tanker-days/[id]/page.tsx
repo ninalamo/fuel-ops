@@ -25,7 +25,8 @@ import {
     Play,
     RotateCcw,
     Ban,
-    Package
+    Package,
+    Eye
 } from 'lucide-react'
 import { Modal } from '@/components/Modal'
 import { TankerDayDetail, TripDetail, Compartment, TimelineEvent } from '@/lib/types'
@@ -576,6 +577,14 @@ export default function TankerDayDetailPage() {
                                                         >
                                                             <FileText className="h-3 w-3" /> View/Add POD
                                                         </button>
+                                                    )}
+                                                    {(trip.status === 'RETURNED' || trip.status === 'COMPLETED') && (
+                                                        <Link
+                                                            href={`/trips/${trip.id}`}
+                                                            className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium flex items-center gap-1 hover:bg-blue-100"
+                                                        >
+                                                            <Eye className="h-3 w-3" /> View Trip Details
+                                                        </Link>
                                                     )}
                                                 </div>
                                             )}

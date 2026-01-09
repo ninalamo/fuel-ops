@@ -4,310 +4,516 @@ import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { format } from 'date-fns'
 import {
+    Plus,
     Truck,
-    MapPin,
-    Clock,
-    CheckCircle,
-    Play,
-    RotateCcw,
+    Calendar,
+    ChevronRight,
+    Lock,
+    Send,
+    Circle,
     Eye,
+    CheckCircle,
+    User,
     Fuel,
-    ChevronRight
+    X,
+    Layers
 } from 'lucide-react'
+import { Modal } from '@/components/Modal'
 
-interface FleetTanker {
+interface TankerDay {
     id: string
+    date: string
+    tankerId: string
     plateNumber: string
     driver: string
-    porter: string
-    status: 'AT_DEPOT' | 'IN_TRANSIT' | 'DELIVERING' | 'RETURNING'
-    lastTrip?: {
-        station: string
-        departedAt: string
-        returnedAt?: string
-    }
-    currentQuantities: Record<string, { compartmentName: string; product: string; quantity: number; maxVolume: number }>
+    status: 'OPEN' | 'SUBMITTED' | 'RETURNED' | 'LOCKED'
     tripsCompleted: number
     totalTrips: number
-    totalDelivered: number
-    tankerDayId: string
-    tankerDayStatus: string
+    litersDelivered: number
+    hasExceptions: boolean
 }
 
-// Mock fleet data
-const MOCK_FLEET: FleetTanker[] = [
-    {
-        id: 'tanker-1',
-        plateNumber: 'ABC-1234',
-        driver: 'Juan Cruz',
-        porter: 'Carlos Lopez',
-        status: 'AT_DEPOT',
-        lastTrip: { station: 'Shell EDSA', departedAt: '2026-01-06T08:00:00', returnedAt: '2026-01-06T10:30:00' },
-        currentQuantities: {
-            c1: { compartmentName: 'C1', product: 'DIESEL', quantity: 5000, maxVolume: 7500 },
-            c2: { compartmentName: 'C2', product: 'DIESEL', quantity: 4800, maxVolume: 7500 },
-            c3: { compartmentName: 'C3', product: 'UNLEADED', quantity: 6200, maxVolume: 7500 },
-            c4: { compartmentName: 'C4', product: 'UNLEADED', quantity: 7000, maxVolume: 7500 },
-        },
-        tripsCompleted: 2,
-        totalTrips: 3,
-        totalDelivered: 8100,
-        tankerDayId: 'td-2026-01-06-tanker-1',
-        tankerDayStatus: 'OPEN',
-    },
-    {
-        id: 'tanker-2',
-        plateNumber: 'XYZ-5678',
-        driver: 'Pedro Santos',
-        porter: 'Ana Mendez',
-        status: 'IN_TRANSIT',
-        lastTrip: { station: 'Petron Makati', departedAt: '2026-01-06T09:45:00' },
-        currentQuantities: {
-            c1: { compartmentName: 'C1', product: 'DIESEL', quantity: 8500, maxVolume: 8500 },
-            c2: { compartmentName: 'C2', product: 'DIESEL', quantity: 8500, maxVolume: 8500 },
-            c3: { compartmentName: 'C3', product: 'UNLEADED', quantity: 8000, maxVolume: 8000 },
-        },
-        tripsCompleted: 1,
-        totalTrips: 4,
-        totalDelivered: 4500,
-        tankerDayId: 'td-2026-01-06-tanker-2',
-        tankerDayStatus: 'OPEN',
-    },
-    {
-        id: 'tanker-3',
-        plateNumber: 'DEF-9012',
-        driver: 'Maria Garcia',
-        porter: 'Luis Torres',
-        status: 'DELIVERING',
-        lastTrip: { station: 'Caltex BGC', departedAt: '2026-01-06T11:00:00' },
-        currentQuantities: {
-            c1: { compartmentName: 'C1', product: 'DIESEL', quantity: 3000, maxVolume: 10000 },
-            c2: { compartmentName: 'C2', product: 'DIESEL', quantity: 2500, maxVolume: 10000 },
-        },
-        tripsCompleted: 0,
-        totalTrips: 2,
-        totalDelivered: 0,
-        tankerDayId: 'td-2026-01-06-tanker-3',
-        tankerDayStatus: 'OPEN',
-    },
-    {
-        id: 'tanker-4',
-        plateNumber: 'GHI-3456',
-        driver: 'Jose Reyes',
-        porter: 'Rosa Fernandez',
-        status: 'AT_DEPOT',
-        currentQuantities: {
-            c1: { compartmentName: 'C1', product: 'DIESEL', quantity: 0, maxVolume: 7000 },
-            c2: { compartmentName: 'C2', product: 'DIESEL', quantity: 0, maxVolume: 7000 },
-            c3: { compartmentName: 'C3', product: 'UNLEADED', quantity: 0, maxVolume: 7000 },
-            c4: { compartmentName: 'C4', product: 'UNLEADED', quantity: 0, maxVolume: 7000 },
-            c5: { compartmentName: 'C5', product: 'PREMIUM', quantity: 0, maxVolume: 7000 },
-        },
-        tripsCompleted: 5,
-        totalTrips: 5,
-        totalDelivered: 32000,
-        tankerDayId: 'td-2026-01-06-tanker-4',
-        tankerDayStatus: 'SUBMITTED',
-    },
+interface DashboardStats {
+    totalTankers: number
+    open: number
+    submitted: number
+    locked: number
+}
+
+// Mock tankers for selection
+const AVAILABLE_TANKERS = [
+    { id: 'tanker-1', plateNumber: 'ABC-1234', capacity: 30000, compartments: 4 },
+    { id: 'tanker-2', plateNumber: 'XYZ-5678', capacity: 25000, compartments: 3 },
+    { id: 'tanker-3', plateNumber: 'DEF-9012', capacity: 20000, compartments: 2 },
+    { id: 'tanker-4', plateNumber: 'GHI-3456', capacity: 35000, compartments: 5 },
 ]
 
-export default function FleetStatusPage() {
-    const [fleet, setFleet] = useState<FleetTanker[]>([])
+const AVAILABLE_DRIVERS = ['Juan Cruz', 'Pedro Santos', 'Maria Garcia', 'Jose Reyes', 'Miguel Torres']
+const AVAILABLE_PORTERS = ['Carlos Lopez', 'Ana Mendez', 'Luis Torres', 'Rosa Fernandez']
+
+export default function DashboardPage() {
+    const [tankerDays, setTankerDays] = useState<TankerDay[]>([])
+    const [stats, setStats] = useState<DashboardStats>({ totalTankers: 0, open: 0, submitted: 0, locked: 0 })
     const [loading, setLoading] = useState(true)
+    const [businessDate, setBusinessDate] = useState(format(new Date(), 'yyyy-MM-dd'))
     const [userRole, setUserRole] = useState<string | null>(null)
+
+    // Create Tanker Day Modal
+    const [showCreateModal, setShowCreateModal] = useState(false)
+    const [createForm, setCreateForm] = useState({
+        tankerId: '',
+    })
+
+    // Filter state
+    const [filterStatus, setFilterStatus] = useState<string>('ALL')
+    const [filterTanker, setFilterTanker] = useState('')
 
     useEffect(() => {
         const role = localStorage.getItem('userRole')
         setUserRole(role)
-        // Simulate API call
-        setTimeout(() => {
-            setFleet(MOCK_FLEET)
+        // Default to SUBMITTED filter for supervisor
+        if (role === 'supervisor') {
+            setFilterStatus('SUBMITTED')
+        }
+        fetchData()
+    }, [businessDate])
+
+    const fetchData = async () => {
+        setLoading(true)
+        try {
+            const res = await fetch(`/api/tanker-days?date=${businessDate}`)
+            const data = await res.json()
+            setTankerDays(data.tankerDays)
+            setStats(data.stats)
+        } catch (error) {
+            console.error('Error fetching data:', error)
+        } finally {
             setLoading(false)
-        }, 500)
-    }, [])
+        }
+    }
+
+    const handleCreateTankerDay = async () => {
+        try {
+            const res = await fetch('/api/tanker-days', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    date: businessDate,
+                    tankerId: createForm.tankerId
+                })
+            })
+
+            if (!res.ok) {
+                const err = await res.json()
+                alert(err.error || 'Failed to create tanker day')
+                return
+            }
+
+            const newTankerDay = await res.json()
+            setTankerDays([...tankerDays, newTankerDay])
+            setStats({ ...stats, totalTankers: stats.totalTankers + 1, open: stats.open + 1 })
+            setShowCreateModal(false)
+            setCreateForm({ tankerId: '' })
+        } catch (error) {
+            console.error('Failed to create tanker day:', error)
+            alert('An error occurred while creating the tanker day')
+        }
+    }
+
+    const handleBulkCreate = () => {
+        const assignedIds = tankerDays.map(td => td.tankerId)
+        const toCreate = AVAILABLE_TANKERS.filter(t => !assignedIds.includes(t.id))
+
+        if (toCreate.length === 0) return
+
+        const newDays: TankerDay[] = toCreate.map(t => ({
+            id: `td-${businessDate}-${t.id}`,
+            date: businessDate,
+            tankerId: t.id,
+            plateNumber: t.plateNumber,
+            driver: '',
+            status: 'OPEN',
+            tripsCompleted: 0,
+            totalTrips: 0,
+            litersDelivered: 0,
+            hasExceptions: false,
+        }))
+
+        setTankerDays([...tankerDays, ...newDays])
+        setStats({
+            ...stats,
+            totalTankers: stats.totalTankers + newDays.length,
+            open: stats.open + newDays.length
+        })
+    }
 
     const getStatusBadge = (status: string) => {
-        const styles: Record<string, { bg: string; icon: typeof Clock }> = {
-            AT_DEPOT: { bg: 'bg-gray-100 text-gray-700', icon: Clock },
-            IN_TRANSIT: { bg: 'bg-blue-100 text-blue-700', icon: Play },
-            DELIVERING: { bg: 'bg-yellow-100 text-yellow-700', icon: MapPin },
-            RETURNING: { bg: 'bg-orange-100 text-orange-700', icon: RotateCcw },
+        const styles: Record<string, string> = {
+            OPEN: 'bg-blue-100 text-blue-700 border-blue-200',
+            SUBMITTED: 'bg-yellow-100 text-yellow-700 border-yellow-200',
+            RETURNED: 'bg-orange-100 text-orange-700 border-orange-200',
+            LOCKED: 'bg-emerald-50 text-emerald-600 border-emerald-200',
         }
-        const style = styles[status] || styles.AT_DEPOT
-        const Icon = style.icon
+
+        const icons: Record<string, typeof Circle> = {
+            OPEN: Circle,
+            SUBMITTED: Send,
+            RETURNED: Circle,
+            LOCKED: Lock,
+        }
+
+        const Icon = icons[status] || Circle
+
         return (
-            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${style.bg}`}>
+            <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border ${styles[status] || styles.OPEN}`}>
                 <Icon className="h-3 w-3" />
-                {status.replace('_', ' ')}
+                {status}
             </span>
         )
     }
 
-    const getTotalsPerFuelType = (quantities: FleetTanker['currentQuantities']) => {
-        const totals: Record<string, { current: number; max: number }> = {}
-        Object.values(quantities).forEach(q => {
-            if (!totals[q.product]) {
-                totals[q.product] = { current: 0, max: 0 }
+    // Filter tanker days based on role and user filters
+    const filteredTankerDays = tankerDays.filter(td => {
+        // Role-based filtering for supervisor
+        if (userRole === 'supervisor') {
+            if (td.status !== 'SUBMITTED' && td.status !== 'LOCKED') {
+                return false
             }
-            totals[q.product].current += q.quantity
-            totals[q.product].max += q.maxVolume
-        })
-        return totals
-    }
+        }
 
-    const getProductColor = (product: string) => {
-        switch (product) {
-            case 'DIESEL': return 'bg-blue-500'
-            case 'UNLEADED': case 'UNLEADED 91': case 'UNLEADED 95': return 'bg-green-500'
-            case 'PREMIUM': return 'bg-purple-500'
-            default: return 'bg-gray-500'
+        // Status filter
+        if (filterStatus !== 'ALL' && td.status !== filterStatus) {
+            return false
+        }
+
+        // Tanker name filter (case-insensitive search)
+        if (filterTanker && !td.plateNumber.toLowerCase().includes(filterTanker.toLowerCase())) {
+            return false
+        }
+
+        return true
+    })
+
+    // Get tankers already assigned today
+    const assignedTankerIds = tankerDays.map(td => td.tankerId)
+    const availableTankersForDay = AVAILABLE_TANKERS.filter(t => !assignedTankerIds.includes(t.id))
+
+    const getRoleTitle = () => {
+        switch (userRole) {
+            case 'encoder': return 'Fleet Status'
+            case 'supervisor': return 'Fleet Review'
+            case 'admin': return 'Fleet Status - Admin'
+            default: return 'Fleet Status'
         }
     }
 
-    // Summary stats
-    const atDepot = fleet.filter(t => t.status === 'AT_DEPOT').length
-    const inTransit = fleet.filter(t => t.status === 'IN_TRANSIT' || t.status === 'DELIVERING' || t.status === 'RETURNING').length
-    const totalDeliveredToday = fleet.reduce((sum, t) => sum + t.totalDelivered, 0)
-
-    if (loading) {
-        return (
-            <div className="flex justify-center items-center min-h-[60vh]">
-                <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full" />
-            </div>
-        )
+    const getRoleSubtitle = () => {
+        switch (userRole) {
+            case 'encoder': return 'Manage tanker daily operations, trips, and fuel recording'
+            case 'supervisor': return 'Review, approve records and POD verification'
+            case 'admin': return 'System administration and master data'
+            default: return 'Track and manage operations'
+        }
     }
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            {/* Header */}
-            <div className="mb-8">
-                <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-                <p className="text-gray-500 mt-1">Real-time tanker locations and fuel quantities</p>
+            {/* Page Header */}
+            <div className="flex flex-wrap justify-between items-start gap-4 mb-8">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">{getRoleTitle()}</h1>
+                    <p className="text-gray-500 mt-1">{getRoleSubtitle()}</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    {/* Business Date Picker */}
+                    <div className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg">
+                        <Calendar className="h-4 w-4 text-gray-500" />
+                        <input
+                            type="date"
+                            value={businessDate}
+                            onChange={(e) => setBusinessDate(e.target.value)}
+                            className="text-sm font-medium text-gray-700 border-0 bg-transparent focus:outline-none"
+                        />
+                    </div>
+                    {/* Create Tanker Day Button - Only for Encoder/Admin and current day */}
+                    {(userRole === 'encoder' || userRole === 'admin') && (
+                        <div className="flex gap-2">
+                            <button
+                                onClick={handleBulkCreate}
+                                disabled={businessDate !== format(new Date(), 'yyyy-MM-dd') || availableTankersForDay.length === 0}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors border ${businessDate !== format(new Date(), 'yyyy-MM-dd') || availableTankersForDay.length === 0
+                                    ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                    : 'bg-white text-blue-600 border-blue-200 hover:bg-blue-50'
+                                    }`}
+                                title="Open days for all unassigned tankers"
+                            >
+                                <Layers className="h-4 w-4" />
+                                Bulk Open ({availableTankersForDay.length})
+                            </button>
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                disabled={businessDate !== format(new Date(), 'yyyy-MM-dd')}
+                                className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-colors ${businessDate !== format(new Date(), 'yyyy-MM-dd')
+                                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                                    }`}
+                                title={businessDate !== format(new Date(), 'yyyy-MM-dd') ? 'Tanker days can only be created for today' : ''}
+                            >
+                                <Plus className="h-4 w-4" />
+                                Create Tanker Day
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
-            {/* Summary Stats */}
+            {/* Stats Cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-                <div className="bg-white p-5 rounded-xl border border-gray-100">
-                    <div className="text-3xl font-bold text-gray-900">{fleet.length}</div>
-                    <div className="text-sm text-gray-500 font-medium">Total Tankers</div>
-                </div>
-                <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
-                    <div className="text-3xl font-bold text-gray-700">{atDepot}</div>
-                    <div className="text-sm text-gray-500 font-medium">At Depot</div>
-                </div>
-                <div className="bg-blue-50 p-5 rounded-xl border border-blue-200">
-                    <div className="text-3xl font-bold text-blue-700">{inTransit}</div>
-                    <div className="text-sm text-blue-600 font-medium">In Transit</div>
-                </div>
-                <div className="bg-green-50 p-5 rounded-xl border border-green-200">
-                    <div className="text-3xl font-bold text-green-700">{totalDeliveredToday.toLocaleString()}L</div>
-                    <div className="text-sm text-green-600 font-medium">Delivered Today</div>
-                </div>
+                <StatCard label="Total Tankers" value={stats.totalTankers} color="blue" />
+                <StatCard
+                    label="Open"
+                    value={stats.open}
+                    color="sky"
+                    highlight={userRole === 'encoder'}
+                />
+                <StatCard
+                    label="Submitted"
+                    value={stats.submitted}
+                    color="yellow"
+                    highlight={userRole === 'supervisor'}
+                />
+                <StatCard label="Locked" value={stats.locked} color="green" />
             </div>
 
-            {/* Fleet Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {fleet.map((tanker) => {
-                    const fuelTotals = getTotalsPerFuelType(tanker.currentQuantities)
-                    return (
-                        <div key={tanker.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-                            {/* Tanker Header */}
-                            <div className="p-4 border-b border-gray-100 flex justify-between items-center">
-                                <div className="flex items-center gap-3">
-                                    <div className={`p-2 rounded-lg ${tanker.status === 'AT_DEPOT' ? 'bg-gray-100' : 'bg-blue-100'}`}>
-                                        <Truck className={`h-6 w-6 ${tanker.status === 'AT_DEPOT' ? 'text-gray-600' : 'text-blue-600'}`} />
-                                    </div>
-                                    <div>
-                                        <div className="font-bold text-gray-900">{tanker.plateNumber}</div>
-                                        <div className="text-xs text-gray-500">{tanker.driver} / {tanker.porter}</div>
-                                    </div>
-                                </div>
-                                {getStatusBadge(tanker.status)}
+            {/* Filters */}
+            <div className="flex flex-wrap gap-4 mb-6">
+                <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Status:</label>
+                    <select
+                        value={filterStatus}
+                        onChange={(e) => setFilterStatus(e.target.value)}
+                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                        <option value="ALL">All Statuses</option>
+                        <option value="OPEN">Open</option>
+                        <option value="SUBMITTED">Submitted</option>
+                        <option value="LOCKED">Locked</option>
+                    </select>
+                </div>
+                <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-gray-700">Tanker:</label>
+                    <input
+                        type="text"
+                        value={filterTanker}
+                        onChange={(e) => setFilterTanker(e.target.value)}
+                        placeholder="Search plate number..."
+                        className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-48"
+                    />
+                </div>
+                {(filterStatus !== 'ALL' || filterTanker) && (
+                    <button
+                        onClick={() => {
+                            setFilterStatus('ALL')
+                            setFilterTanker('')
+                        }}
+                        className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
+                    >
+                        <X className="h-4 w-4" />
+                        Clear filters
+                    </button>
+                )}
+            </div>
+
+            {/* Tanker Operations Table */}
+            <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+                    <h2 className="text-lg font-semibold text-gray-900">
+                        {userRole === 'supervisor' ? 'Pending Reviews' : 'Tanker Operations'}
+                    </h2>
+                    {userRole === 'supervisor' && stats.submitted > 0 && (
+                        <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
+                            {stats.submitted} awaiting review
+                        </span>
+                    )}
+                </div>
+
+                {loading ? (
+                    <div className="flex justify-center py-12">
+                        <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full" />
+                    </div>
+                ) : filteredTankerDays.length === 0 ? (
+                    <div className="text-center py-12">
+                        <Truck className="h-12 w-12 mx-auto text-gray-300 mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                            {userRole === 'supervisor' ? 'No Pending Reviews' : 'No Tanker Days'}
+                        </h3>
+                        <p className="text-gray-500 mb-4">
+                            {userRole === 'supervisor'
+                                ? 'All tanker days have been reviewed.'
+                                : 'No operations scheduled for this date.'}
+                        </p>
+                        {(userRole === 'encoder' || userRole === 'admin') && availableTankersForDay.length > 0 && (
+                            <button
+                                onClick={() => setShowCreateModal(true)}
+                                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            >
+                                <Plus className="h-4 w-4" />
+                                Create Tanker Day
+                            </button>
+                        )}
+                    </div>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full">
+                            <thead>
+                                <tr className="border-b border-gray-100">
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tanker</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Driver</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trips</th>
+                                    <th className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Liters Delivered</th>
+                                    <th className="px-6 py-3 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-50">
+                                {filteredTankerDays.map((tanker) => (
+                                    <tr key={tanker.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 bg-blue-50 rounded-lg">
+                                                    <Truck className="h-5 w-5 text-blue-600" />
+                                                </div>
+                                                <span className="font-semibold text-gray-900">{tanker.plateNumber}</span>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-gray-600">{tanker.driver}</td>
+                                        <td className="px-6 py-4">{getStatusBadge(tanker.status)}</td>
+                                        <td className="px-6 py-4">
+                                            <span className="font-medium text-gray-900">{tanker.tripsCompleted}</span>
+                                            <span className="text-gray-400">/{tanker.totalTrips}</span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className="font-medium text-gray-900">{tanker.litersDelivered.toLocaleString()}</span>
+                                            <span className="text-gray-400 ml-1">L</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <Link
+                                                href={`/tanker-days/${tanker.id}`}
+                                                className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-sm"
+                                            >
+                                                {userRole === 'supervisor' && tanker.status === 'SUBMITTED' ? (
+                                                    <>
+                                                        <Eye className="h-4 w-4" />
+                                                        Review
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        View Details
+                                                        <ChevronRight className="h-4 w-4" />
+                                                    </>
+                                                )}
+                                            </Link>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
+
+            {/* Create Tanker Day Modal */}
+            <Modal
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                title="Create Tanker Day"
+                size="lg"
+            >
+                <div className="space-y-6">
+                    <div className="p-4 bg-blue-50 rounded-lg">
+                        <div className="flex items-center gap-2 text-blue-800 font-medium mb-1">
+                            <Calendar className="h-4 w-4" />
+                            Business Date: {format(new Date(businessDate), 'EEEE, MMMM d, yyyy')}
+                        </div>
+                        <p className="text-sm text-blue-600">Select a tanker for this day's operations. Driver and Porter are assigned per trip.</p>
+                    </div>
+
+                    {/* Tanker Selection */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">Select Tanker</label>
+                        {availableTankersForDay.length === 0 ? (
+                            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-800 text-sm">
+                                All tankers are already assigned for this date.
                             </div>
-
-                            {/* Last Trip Info */}
-                            {tanker.lastTrip && (
-                                <div className={`px-4 py-2 text-sm ${tanker.lastTrip.returnedAt ? 'bg-green-50' : 'bg-yellow-50'}`}>
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex items-center gap-2">
-                                            <MapPin className={`h-4 w-4 ${tanker.lastTrip.returnedAt ? 'text-green-600' : 'text-yellow-600'}`} />
-                                            <span className="font-medium text-gray-900">{tanker.lastTrip.station}</span>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-3">
+                                {availableTankersForDay.map(tanker => (
+                                    <button
+                                        key={tanker.id}
+                                        onClick={() => setCreateForm({ ...createForm, tankerId: tanker.id })}
+                                        className={`p-4 border rounded-lg text-left transition-all ${createForm.tankerId === tanker.id
+                                            ? 'border-blue-500 bg-blue-50 ring-2 ring-blue-200'
+                                            : 'border-gray-200 hover:border-blue-300'
+                                            }`}
+                                    >
+                                        <div className="flex items-center gap-3 mb-2">
+                                            <Truck className={`h-5 w-5 ${createForm.tankerId === tanker.id ? 'text-blue-600' : 'text-gray-400'}`} />
+                                            <span className="font-semibold text-gray-900">{tanker.plateNumber}</span>
                                         </div>
-                                        <div className="text-xs text-gray-500">
-                                            {tanker.lastTrip.returnedAt
-                                                ? `Returned ${format(new Date(tanker.lastTrip.returnedAt), 'h:mm a')}`
-                                                : `Departed ${format(new Date(tanker.lastTrip.departedAt), 'h:mm a')}`
-                                            }
+                                        <div className="text-sm text-gray-500">
+                                            {tanker.capacity.toLocaleString()}L • {tanker.compartments} compartments
                                         </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Fuel Totals by Type */}
-                            <div className="p-4 space-y-3">
-                                <div className="text-xs font-semibold text-gray-500 uppercase">Current Fuel Levels</div>
-                                {Object.entries(fuelTotals).map(([product, totals]) => (
-                                    <div key={product} className="flex items-center gap-3">
-                                        <div className={`w-3 h-3 rounded-full ${getProductColor(product)}`} />
-                                        <div className="flex-1">
-                                            <div className="flex justify-between text-sm mb-1">
-                                                <span className="font-medium text-gray-700">{product}</span>
-                                                <span className="text-gray-500">{totals.current.toLocaleString()} / {totals.max.toLocaleString()} L</span>
-                                            </div>
-                                            <div className="w-full bg-gray-200 rounded-full h-2">
-                                                <div
-                                                    className={`h-2 rounded-full ${getProductColor(product)}`}
-                                                    style={{ width: `${(totals.current / totals.max) * 100}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
+                                    </button>
                                 ))}
                             </div>
+                        )}
+                    </div>
 
-                            {/* Compartment Breakdown */}
-                            <div className="px-4 pb-4">
-                                <details className="group">
-                                    <summary className="text-xs text-blue-600 cursor-pointer hover:text-blue-800 flex items-center gap-1">
-                                        <Fuel className="h-3 w-3" />
-                                        View compartment details
-                                    </summary>
-                                    <div className="mt-2 grid grid-cols-2 gap-2">
-                                        {Object.entries(tanker.currentQuantities).map(([id, comp]) => (
-                                            <div key={id} className="flex justify-between items-center p-2 bg-gray-50 rounded text-xs">
-                                                <div className="flex items-center gap-1">
-                                                    <div className={`w-2 h-2 rounded-full ${getProductColor(comp.product)}`} />
-                                                    <span className="font-medium">{comp.compartmentName}</span>
-                                                </div>
-                                                <span className="text-gray-600">{comp.quantity.toLocaleString()}L</span>
-                                            </div>
-                                        ))}
-                                    </div>
-                                </details>
-                            </div>
+                    {/* Actions */}
+                    <div className="flex gap-3 pt-4 border-t border-gray-100">
+                        <button
+                            onClick={() => setShowCreateModal(false)}
+                            className="flex-1 px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleCreateTankerDay}
+                            disabled={!createForm.tankerId}
+                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        >
+                            <Plus className="h-4 w-4" />
+                            Create Tanker Day
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+        </div>
+    )
+}
 
-                            {/* Trip Progress & Actions */}
-                            <div className="px-4 py-3 border-t border-gray-100 bg-gray-50 flex justify-between items-center">
-                                <div className="text-sm">
-                                    <span className="text-gray-500">Trips:</span>
-                                    <span className="font-bold text-gray-900 ml-1">{tanker.tripsCompleted}/{tanker.totalTrips}</span>
-                                    <span className="text-gray-400 mx-2">•</span>
-                                    <span className="text-gray-500">Delivered:</span>
-                                    <span className="font-bold text-gray-900 ml-1">{tanker.totalDelivered.toLocaleString()}L</span>
-                                </div>
-                                <Link
-                                    href={`/tanker-days/${tanker.tankerDayId}`}
-                                    className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
-                                >
-                                    <Eye className="h-4 w-4" />
-                                    {userRole === 'supervisor' && tanker.tankerDayStatus === 'SUBMITTED' ? 'Review' : 'Details'}
-                                    <ChevronRight className="h-4 w-4" />
-                                </Link>
-                            </div>
-                        </div>
-                    )
-                })}
-            </div>
+function StatCard({
+    label,
+    value,
+    color,
+    highlight = false
+}: {
+    label: string
+    value: number
+    color: string
+    highlight?: boolean
+}) {
+    const colors: Record<string, string> = {
+        blue: 'bg-blue-50 border-blue-100',
+        sky: 'bg-sky-50 border-sky-100',
+        yellow: 'bg-yellow-50 border-yellow-100',
+        green: 'bg-green-50 border-green-100',
+    }
+
+    return (
+        <div className={`p-5 rounded-xl border ${colors[color]} bg-white ${highlight ? 'ring-2 ring-blue-500 ring-offset-2' : ''}`}>
+            <div className="text-3xl font-bold text-gray-900 mb-1">{value}</div>
+            <div className="text-sm text-gray-500 font-medium">{label}</div>
         </div>
     )
 }
