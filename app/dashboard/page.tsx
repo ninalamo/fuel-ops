@@ -179,10 +179,10 @@ export default function DashboardPage() {
 
     const getRoleTitle = () => {
         switch (userRole) {
-            case 'encoder': return 'Fleet Dashboard'
-            case 'supervisor': return 'Supervisor Dashboard'
-            case 'admin': return 'Admin Dashboard'
-            default: return 'Dashboard'
+            case 'encoder': return 'Fleet Status'
+            case 'supervisor': return 'Fleet Status - Review Queue'
+            case 'admin': return 'Fleet Status - Admin'
+            default: return 'Fleet Status'
         }
     }
 

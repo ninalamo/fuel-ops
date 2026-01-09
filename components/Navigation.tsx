@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import { Fuel, LogOut } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
-type UserRole = 'encoder' | 'validator' | 'supervisor' | 'admin'
+type UserRole = 'encoder' | 'supervisor' | 'admin'
 
 interface User {
     name: string
@@ -65,7 +65,6 @@ export function Navigation() {
     const getRoleLabel = (role: UserRole) => {
         const labels: Record<UserRole, string> = {
             encoder: 'Encoder',
-            validator: 'Validator',
             supervisor: 'Supervisor',
             admin: 'Admin',
         }
@@ -86,8 +85,8 @@ export function Navigation() {
 
                     {/* Center Navigation Tabs */}
                     <div className="flex items-center gap-2">
-                        <NavTab href="/dashboard" label="Dashboard" isActive={pathname === '/dashboard' || pathname.startsWith('/tanker-days')} />
-                        <NavTab href="/fleet-status" label="Fleet Status" isActive={pathname === '/fleet-status'} />
+                        <NavTab href="/fleet-status" label="Dashboard" isActive={pathname === '/fleet-status'} />
+                        <NavTab href="/dashboard" label="Fleet Status" isActive={pathname === '/dashboard' || pathname.startsWith('/tanker-days')} />
                         <NavTab href="/trips" label="Trips" isActive={pathname === '/trips'} />
                         {user?.role !== 'encoder' && (
                             <NavTab href="/reports" label="Reports" isActive={pathname.startsWith('/reports')} />
