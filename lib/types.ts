@@ -56,6 +56,8 @@ export interface TripDetail {
     id: string     // Alias for tripId (used by UI)
     tripNumber: string
     tankerId: string
+    tankerDayId?: string
+    hasException?: boolean
     driver: string
     porter: string
     station: string

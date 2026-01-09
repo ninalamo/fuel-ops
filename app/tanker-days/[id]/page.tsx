@@ -285,6 +285,38 @@ export default function TankerDayDetailPage() {
         setShowPodModal(true)
     }
 
+    const addToTimeline = async (title: string, description: string, type: 'SNAPSHOT' | 'REFILL' | 'TRIP' = 'SNAPSHOT', status: 'COMPLETED' | 'IN_PROGRESS' | 'PENDING' = 'COMPLETED') => {
+        if (!data) return
+
+        const newEvent = {
+            id: `evt-${Date.now()}`,
+            type,
+            title,
+            description,
+            timestamp: new Date().toISOString(),
+            status
+        }
+
+        // Optimistically update local state first
+        const updatedTimeline = [...data.timeline, newEvent]
+        setData(prev => prev ? { ...prev, timeline: updatedTimeline } : null)
+
+        try {
+            // Persist to API (PATCH the whole timeline array)
+            // Note: Concurrency issue if multiple users edit timeline, but acceptable for now
+            await fetch(`http://localhost:3001/tankerDays/${data.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    timeline: updatedTimeline
+                })
+            })
+        } catch (error) {
+            console.error('Failed to persist timeline:', error)
+            // Revert on failure? skipping for simplicity
+        }
+    }
+
     const handleUploadPod = async () => {
         if (!data || !selectedTrip) return
 
@@ -322,24 +354,35 @@ export default function TankerDayDetailPage() {
                     podFiles: newPodFiles
                 })
             })
+
+            // 3. Add Timeline Event
+            await addToTimeline(
+                'POD Uploaded',
+                `POD uploaded for Trip #${selectedTrip.tripNumber}`,
+                'TRIP' // Using TRIP type for pod upload
+            )
+
         } catch (error) {
             console.error('Failed to sync POD upload:', error)
             // Continue to optimistic update
         }
 
-        setData({
-            ...data,
-            trips: data.trips.map(t =>
-                t.id === selectedTrip.id
-                    ? {
-                        ...t,
-                        hasPod: true,
-                        podFiles: newPodFiles,
-                        status: 'COMPLETED',
-                        completedAt: timestamp
-                    }
-                    : t
-            ),
+        setData((prev) => {
+            if (!prev) return null
+            return {
+                ...prev,
+                trips: prev.trips.map(t =>
+                    t.id === selectedTrip.id
+                        ? {
+                            ...t,
+                            hasPod: true,
+                            podFiles: newPodFiles,
+                            status: 'COMPLETED',
+                            completedAt: timestamp
+                        }
+                        : t
+                ),
+            }
         })
         setShowPodModal(false)
         setSelectedTrip(null)
@@ -362,7 +405,7 @@ export default function TankerDayDetailPage() {
             setData({ ...data, status: 'SUBMITTED' })
 
             // Add timeline event
-            // Note: In a real app, timeline should be added via API too
+            await addToTimeline('Submitted for Review', 'Tanker Day submitted for approval', 'SNAPSHOT')
         } catch (error) {
             console.error('Failed to submit:', error)
         }
@@ -377,6 +420,7 @@ export default function TankerDayDetailPage() {
                 body: JSON.stringify({ status: 'OPEN' })
             })
             setData({ ...data, status: 'OPEN' })
+            await addToTimeline('Returned', 'Tanker Day returned for correction', 'SNAPSHOT')
         } catch (error) {
             console.error('Failed to return:', error)
         }
@@ -391,6 +435,7 @@ export default function TankerDayDetailPage() {
                 body: JSON.stringify({ status: 'LOCKED' })
             })
             setData({ ...data, status: 'LOCKED' })
+            await addToTimeline('Approved & Locked', 'Tanker Day operations approved and locked', 'SNAPSHOT')
         } catch (error) {
             console.error('Failed to approve:', error)
         }

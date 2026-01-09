@@ -26,18 +26,33 @@ export class JsonServerOperationsService implements IOperationsService {
         // Fetch all and filter client-side for simplicity, or use query param if supported
         const allDays = await this.fetchJson<TankerDayDetail[]>(`/tankerDays?date=${date}`)
 
-        const summaryList: TankerDaySummary[] = allDays.map(d => ({
-            id: d.id,
-            date: d.date,
-            tankerId: d.tankerId,
-            plateNumber: d.plateNumber,
-            driver: d.driver,
-            status: d.status as 'OPEN' | 'SUBMITTED' | 'RETURNED' | 'LOCKED',
-            tripsCompleted: d.summary.tripsCompleted,
-            totalTrips: d.summary.totalTrips,
-            litersDelivered: d.summary.totalDelivered,
-            hasExceptions: d.summary.exceptions > 0
-        }))
+        // Fetch all trips for the date for dynamic summary calculation
+        const allTrips = await this.fetchJson<TripDetail[]>(`/trips?date=${date}`)
+
+        const summaryList: TankerDaySummary[] = allDays.map(d => {
+            const dayTrips = allTrips.filter(t => t.tankerDayId === d.id)
+
+            // Calculate dynamic summary
+            const tripsCompleted = dayTrips.filter(t => t.status === 'COMPLETED').length
+            const totalTrips = dayTrips.length
+            const litersDelivered = dayTrips
+                .filter(t => t.status === 'COMPLETED')
+                .reduce((sum, t) => sum + (t.actualQty || 0), 0)
+            const hasExceptions = dayTrips.some(t => (t as any).hasException)
+
+            return {
+                id: d.id,
+                date: d.date,
+                tankerId: d.tankerId,
+                plateNumber: d.plateNumber,
+                driver: d.driver,
+                status: d.status as 'OPEN' | 'SUBMITTED' | 'RETURNED' | 'LOCKED',
+                tripsCompleted: tripsCompleted,
+                totalTrips: totalTrips,
+                litersDelivered: litersDelivered,
+                hasExceptions: hasExceptions
+            }
+        })
 
         // Mock stats because JSON server doesn't aggregate
         // In a real app we'd fetch all days to calc stats, or just stats for today
