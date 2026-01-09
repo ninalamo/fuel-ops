@@ -188,18 +188,18 @@ export default function TripDetailPage() {
             setTrip({
                 ...trip,
                 hasPod: true,
-                status: 'COMPLETED',  // Auto-complete trip when POD is uploaded
+                status: 'COMPLETED',  // Trip completed when POD uploaded
                 completedAt: new Date().toISOString(),
                 pods: [...trip.pods, newPod]
             })
             setUploadedFiles([])
 
-            // Add system comment
+            // Add system event
             const newCommentObj: Comment = {
                 id: `c${Date.now()}`,
-                author: userName || 'Encoder',
-                role: userRole || 'encoder',
-                message: `POD uploaded with ${uploadedFiles.length} file(s). Trip marked as completed. Pending supervisor review.`,
+                author: 'System',
+                role: 'system',
+                message: `POD uploaded with ${uploadedFiles.length} file(s). Trip marked as completed.`,
                 createdAt: new Date().toISOString()
             }
             setComments(prev => [newCommentObj, ...prev])
@@ -296,8 +296,8 @@ export default function TripDetailPage() {
             })
             const newCommentObj: Comment = {
                 id: `c${Date.now()}`,
-                author: userName || 'Encoder',
-                role: userRole || 'encoder',
+                author: 'System',
+                role: 'system',
                 message: 'Trip marked as departed. Tanker is en route.',
                 createdAt: new Date().toISOString()
             }
@@ -319,8 +319,8 @@ export default function TripDetailPage() {
             })
             const newCommentObj: Comment = {
                 id: `c${Date.now()}`,
-                author: userName || 'Encoder',
-                role: userRole || 'encoder',
+                author: 'System',
+                role: 'system',
                 message: 'Trip marked as returned. Tanker is back. Awaiting POD upload.',
                 createdAt: new Date().toISOString()
             }
@@ -433,11 +433,11 @@ export default function TripDetailPage() {
             {/* Header */}
             <div className="mb-6">
                 <Link
-                    href="/trips"
+                    href={userRole === 'encoder' ? `/tanker-days/${trip.tankerDayId}` : '/trips'}
                     className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-2"
                 >
                     <ArrowLeft className="h-4 w-4" />
-                    Back to Trips
+                    {userRole === 'encoder' ? `Back to ${trip.tanker} (${format(new Date(trip.date), 'MMM d, yyyy')})` : 'Back to Trips'}
                 </Link>
                 <div className="flex items-center justify-between">
                     <div>
@@ -780,21 +780,24 @@ export default function TripDetailPage() {
                     ) : (
                         <div className="space-y-3">
                             {visibleComments.map((comment) => (
-                                <div key={comment.id} className="flex gap-3">
-                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 ${comment.role === 'supervisor' ? 'bg-purple-100 text-purple-700' :
-                                        comment.role === 'admin' ? 'bg-red-100 text-red-700' :
-                                            'bg-blue-100 text-blue-700'
+                                <div key={comment.id} className={`flex gap-3 ${comment.role === 'system' ? 'bg-gray-50 p-2 rounded-lg' : ''}`}>
+                                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium flex-shrink-0 ${comment.role === 'system' ? 'bg-gray-200 text-gray-600' :
+                                        comment.role === 'supervisor' ? 'bg-purple-100 text-purple-700' :
+                                            comment.role === 'admin' ? 'bg-red-100 text-red-700' :
+                                                'bg-blue-100 text-blue-700'
                                         }`}>
-                                        {comment.author.split(' ').map(n => n[0]).join('')}
+                                        {comment.role === 'system' ? '⚡' : comment.author.split(' ').map(n => n[0]).join('')}
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-2 mb-0.5">
-                                            <span className="text-sm font-medium text-gray-900">{comment.author}</span>
+                                            <span className={`text-sm font-medium ${comment.role === 'system' ? 'text-gray-600' : 'text-gray-900'}`}>
+                                                {comment.role === 'system' ? 'Event' : comment.author}
+                                            </span>
                                             <span className="text-xs text-gray-400">
                                                 {format(new Date(comment.createdAt), 'MMM d, h:mm a')}
                                             </span>
                                         </div>
-                                        <p className="text-sm text-gray-700">{comment.message}</p>
+                                        <p className={`text-sm ${comment.role === 'system' ? 'text-gray-600 italic' : 'text-gray-700'}`}>{comment.message}</p>
                                     </div>
                                 </div>
                             ))}

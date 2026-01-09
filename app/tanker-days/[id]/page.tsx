@@ -367,11 +367,11 @@ export default function TankerDayDetailPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {/* Back Link */}
             <Link
-                href="/dashboard"
+                href="/fleet-status"
                 className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6"
             >
                 <ArrowLeft className="h-4 w-4" />
-                Back to Dashboard
+                Back to Tanker Operations
             </Link>
 
             {/* Header */}

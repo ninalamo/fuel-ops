@@ -2,8 +2,9 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Fuel, LogOut } from 'lucide-react'
+import { Fuel, LogOut, Moon, Sun } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useTheme } from './ThemeProvider'
 
 type UserRole = 'encoder' | 'supervisor' | 'admin'
 
@@ -16,6 +17,7 @@ export function Navigation() {
     const pathname = usePathname()
     const [user, setUser] = useState<User | null>(null)
     const [mounted, setMounted] = useState(false)
+    const { theme, toggleTheme } = useTheme()
 
     useEffect(() => {
         setMounted(true)
@@ -102,22 +104,37 @@ export function Navigation() {
                         )}
                     </div>
 
-                    {/* User Profile */}
-                    {user && (
-                        <div className="flex items-center gap-4">
-                            <div className="text-right">
-                                <div className="text-sm font-medium">{user.name}</div>
-                                <div className="text-xs text-blue-300">{getRoleLabel(user.role)}</div>
-                            </div>
-                            <button
-                                onClick={handleLogout}
-                                className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-800 hover:bg-blue-700 rounded-lg transition-colors"
-                            >
-                                <LogOut className="h-4 w-4" />
-                                Logout
-                            </button>
-                        </div>
-                    )}
+                    {/* User Profile & Theme Toggle */}
+                    <div className="flex items-center gap-4">
+                        {/* Theme Toggle */}
+                        <button
+                            onClick={toggleTheme}
+                            className="p-2 rounded-lg hover:bg-blue-800 transition-colors"
+                            title={theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'}
+                        >
+                            {theme === 'light' ? (
+                                <Moon className="h-5 w-5 text-blue-200" />
+                            ) : (
+                                <Sun className="h-5 w-5 text-yellow-300" />
+                            )}
+                        </button>
+
+                        {user && (
+                            <>
+                                <div className="text-right">
+                                    <div className="text-sm font-medium">{user.name}</div>
+                                    <div className="text-xs text-blue-300">{getRoleLabel(user.role)}</div>
+                                </div>
+                                <button
+                                    onClick={handleLogout}
+                                    className="flex items-center gap-2 px-3 py-1.5 text-sm bg-blue-800 hover:bg-blue-700 rounded-lg transition-colors"
+                                >
+                                    <LogOut className="h-4 w-4" />
+                                    Logout
+                                </button>
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
         </nav>
