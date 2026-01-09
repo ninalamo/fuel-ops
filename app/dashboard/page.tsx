@@ -184,11 +184,11 @@ export default function DashboardPage() {
                         <div className="p-2 bg-orange-100 rounded-lg">
                             <Upload className="h-5 w-5 text-orange-600" />
                         </div>
-                        <span className="text-sm font-medium text-gray-500">Awaiting POD</span>
+                        <span className="text-sm font-medium text-gray-500">Returned</span>
                     </div>
                     <div className="text-3xl font-bold text-orange-700">{stats.trips.returned}</div>
                     <div className="text-xs text-gray-500 mt-1">
-                        Returned, needs upload
+                        Awaiting POD Upload
                     </div>
                 </div>
 
@@ -220,20 +220,20 @@ export default function DashboardPage() {
                     </div>
                 </div>
 
-                {/* Trip Review Status */}
+                {/* Tanker Day Review Status */}
                 <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-                    <h3 className="font-semibold text-gray-900 mb-4">Trip Review Status</h3>
+                    <h3 className="font-semibold text-gray-900 mb-4">Tanker Day Review Status</h3>
                     <div className="space-y-3">
-                        <StatusRow label="Pending Approval" count={stats.pods.pendingReview} color="yellow" icon={Eye} />
-                        <StatusRow label="Approved" count={stats.pods.approved} color="green" icon={CheckCircle} />
-                        <StatusRow label="Rejected" count={stats.pods.rejected} color="red" icon={XCircle} />
+                        <StatusRow label="Pending Review" count={stats.tankerDays.submitted} color="yellow" icon={Eye} />
+                        <StatusRow label="Approved / Locked" count={stats.tankerDays.locked} color="green" icon={CheckCircle} />
+                        <StatusRow label="Open / Drafting" count={stats.tankerDays.open} color="blue" icon={Clock} />
                     </div>
-                    {userRole === 'supervisor' && stats.pods.pendingReview > 0 && (
+                    {userRole === 'supervisor' && stats.tankerDays.submitted > 0 && (
                         <Link
                             href="/fleet-status"
                             className="mt-4 inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium"
                         >
-                            Review pending trips <ChevronRight className="h-4 w-4" />
+                            Review Tanker Days <ChevronRight className="h-4 w-4" />
                         </Link>
                     )}
                 </div>

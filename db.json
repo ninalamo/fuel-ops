@@ -1,267 +1,289 @@
 {
-    "tankers": [
+  "tankers": [
+    {
+      "id": "tanker-1",
+      "plateNumber": "ABC-1234",
+      "capacity": 30000,
+      "compartments": [
         {
-            "id": "tanker-1",
-            "plateNumber": "ABC-1234",
-            "capacity": 30000,
-            "compartments": [
-                {
-                    "id": "comp-1",
-                    "name": "Comp 1",
-                    "maxVolume": 7500
-                },
-                {
-                    "id": "comp-2",
-                    "name": "Comp 2",
-                    "maxVolume": 7500
-                },
-                {
-                    "id": "comp-3",
-                    "name": "Comp 3",
-                    "maxVolume": 7500
-                },
-                {
-                    "id": "comp-4",
-                    "name": "Comp 4",
-                    "maxVolume": 7500
-                }
-            ]
-        }
-    ],
-    "drivers": [
-        {
-            "id": "driver-1",
-            "name": "Juan Cruz"
+          "id": "comp-1",
+          "name": "Comp 1",
+          "maxVolume": 7500
         },
         {
-            "id": "driver-2",
-            "name": "Pedro Santos"
-        }
-    ],
-    "porters": [
-        {
-            "id": "porter-1",
-            "name": "Carlos Lopez"
+          "id": "comp-2",
+          "name": "Comp 2",
+          "maxVolume": 7500
         },
         {
-            "id": "porter-2",
-            "name": "Ana Mendez"
-        }
-    ],
-    "customers": [
-        {
-            "id": "customer-1",
-            "name": "Shell Philippines"
+          "id": "comp-3",
+          "name": "Comp 3",
+          "maxVolume": 7500
         },
         {
-            "id": "customer-2",
-            "name": "Petron Corporation"
+          "id": "comp-4",
+          "name": "Comp 4",
+          "maxVolume": 7500
         }
-    ],
-    "stations": [
+      ]
+    }
+  ],
+  "drivers": [
+    {
+      "id": "driver-1",
+      "name": "Juan Cruz"
+    },
+    {
+      "id": "driver-2",
+      "name": "Pedro Santos"
+    }
+  ],
+  "porters": [
+    {
+      "id": "porter-1",
+      "name": "Carlos Lopez"
+    },
+    {
+      "id": "porter-2",
+      "name": "Ana Mendez"
+    }
+  ],
+  "customers": [
+    {
+      "id": "customer-1",
+      "name": "Shell Philippines"
+    },
+    {
+      "id": "customer-2",
+      "name": "Petron Corporation"
+    }
+  ],
+  "stations": [
+    {
+      "id": "station-1",
+      "name": "Shell EDSA",
+      "customerId": "customer-1"
+    },
+    {
+      "id": "station-2",
+      "name": "Shell Ortigas",
+      "customerId": "customer-1"
+    },
+    {
+      "id": "station-3",
+      "name": "Petron Makati",
+      "customerId": "customer-2"
+    }
+  ],
+  "fuelTypes": [
+    {
+      "id": "fuel-1",
+      "name": "DIESEL"
+    },
+    {
+      "id": "fuel-2",
+      "name": "UNLEADED 91"
+    },
+    {
+      "id": "fuel-3",
+      "name": "PREMIUM GASOLINE"
+    }
+  ],
+  "tankerDays": [
+    {
+      "id": "td-2026-01-09-tanker-1",
+      "date": "2026-01-09",
+      "tankerId": "tanker-1",
+      "plateNumber": "ABC-1234",
+      "driver": "Juan Cruz",
+      "porter": "Carlos Lopez",
+      "status": "SUBMITTED",
+      "compartments": [
         {
-            "id": "station-1",
-            "name": "Shell EDSA",
-            "customerId": "customer-1"
+          "id": "comp-1",
+          "name": "Comp 1",
+          "maxVolume": 7500,
+          "product": "DIESEL"
         },
         {
-            "id": "station-2",
-            "name": "Shell Ortigas",
-            "customerId": "customer-1"
+          "id": "comp-2",
+          "name": "Comp 2",
+          "maxVolume": 7500,
+          "product": "DIESEL"
         },
         {
-            "id": "station-3",
-            "name": "Petron Makati",
-            "customerId": "customer-2"
-        }
-    ],
-    "fuelTypes": [
-        {
-            "id": "fuel-1",
-            "name": "DIESEL"
+          "id": "comp-3",
+          "name": "Comp 3",
+          "maxVolume": 7500,
+          "product": "UNLEADED 91"
         },
         {
-            "id": "fuel-2",
-            "name": "UNLEADED 91"
+          "id": "comp-4",
+          "name": "Comp 4",
+          "maxVolume": 7500,
+          "product": "UNLEADED 91"
+        }
+      ],
+      "timeline": [],
+      "summary": {
+        "totalPlanned": 22500,
+        "totalDelivered": 15000,
+        "totalVariance": 0,
+        "tripsCompleted": 1,
+        "totalTrips": 2,
+        "exceptions": 0
+      }
+    }
+  ],
+  "trips": [
+    {
+      "id": "trip-001",
+      "tripId": "trip-001",
+      "tankerDayId": "td-2026-01-09-tanker-1",
+      "tankerId": "tanker-1",
+      "date": "2026-01-09",
+      "tripNumber": "1",
+      "tanker": "ABC-1234",
+      "driver": "Juan Cruz",
+      "porter": "Carlos Lopez",
+      "customer": "Shell Philippines",
+      "station": "Shell EDSA",
+      "eta": "08:00",
+      "products": [
+        "DIESEL",
+        "UNLEADED 91"
+      ],
+      "quantity": 15000,
+      "status": "COMPLETED",
+      "departedAt": "2026-01-09T06:30:00",
+      "returnedAt": "2026-01-09T08:15:00",
+      "completedAt": "2026-01-09T08:20:00",
+      "plannedQty": 15000,
+      "actualQty": 15000,
+      "variance": 0,
+      "hasPod": true,
+      "podFiles": [
+        "delivery_receipt.pdf"
+      ],
+      "hasException": false,
+      "compartmentAllocation": [
+        {
+          "compartmentId": "comp-1",
+          "name": "Comp 1",
+          "startQty": 7500,
+          "refillQty": 0,
+          "totalQty": 7500,
+          "plannedQty": 7500,
+          "actualQty": 7500,
+          "product": "DIESEL"
         },
         {
-            "id": "fuel-3",
-            "name": "PREMIUM GASOLINE"
+          "compartmentId": "comp-3",
+          "name": "Comp 3",
+          "startQty": 7500,
+          "refillQty": 0,
+          "totalQty": 7500,
+          "plannedQty": 7500,
+          "actualQty": 7500,
+          "product": "UNLEADED 91"
         }
-    ],
-    "tankerDays": [
+      ]
+    },
+    {
+      "id": "trip-002",
+      "tripId": "trip-002",
+      "tankerDayId": "td-2026-01-09-tanker-1",
+      "tankerId": "tanker-1",
+      "date": "2026-01-09",
+      "tripNumber": "2",
+      "tanker": "ABC-1234",
+      "driver": "Juan Cruz",
+      "porter": "Carlos Lopez",
+      "customer": "Petron Corporation",
+      "station": "Petron Makati",
+      "eta": "12:00",
+      "products": [
+        "DIESEL"
+      ],
+      "quantity": 7500,
+      "status": "COMPLETED",
+      "departedAt": "2026-01-09T10:00:00",
+      "returnedAt": "2026-01-09T11:45:00",
+      "completedAt": "2026-01-09T14:43:00.871Z",
+      "plannedQty": 7500,
+      "actualQty": 7500,
+      "variance": 0,
+      "hasPod": true,
+      "podFiles": [],
+      "hasException": false,
+      "compartmentAllocation": [
         {
-            "id": "td-2026-01-09-tanker-1",
-            "date": "2026-01-09",
-            "tankerId": "tanker-1",
-            "plateNumber": "ABC-1234",
-            "driver": "Juan Cruz",
-            "porter": "Carlos Lopez",
-            "status": "OPEN",
-            "compartments": [
-                {
-                    "id": "comp-1",
-                    "name": "Comp 1",
-                    "maxVolume": 7500,
-                    "product": "DIESEL"
-                },
-                {
-                    "id": "comp-2",
-                    "name": "Comp 2",
-                    "maxVolume": 7500,
-                    "product": "DIESEL"
-                },
-                {
-                    "id": "comp-3",
-                    "name": "Comp 3",
-                    "maxVolume": 7500,
-                    "product": "UNLEADED 91"
-                },
-                {
-                    "id": "comp-4",
-                    "name": "Comp 4",
-                    "maxVolume": 7500,
-                    "product": "UNLEADED 91"
-                }
-            ],
-            "timeline": [],
-            "summary": {
-                "totalPlanned": 22500,
-                "totalDelivered": 15000,
-                "totalVariance": 0,
-                "tripsCompleted": 1,
-                "totalTrips": 2,
-                "exceptions": 0
-            }
+          "compartmentId": "comp-2",
+          "name": "Comp 2",
+          "startQty": 7500,
+          "refillQty": 0,
+          "totalQty": 7500,
+          "plannedQty": 7500,
+          "actualQty": 7500,
+          "product": "DIESEL"
         }
-    ],
-    "trips": [
+      ]
+    }
+  ],
+  "pods": [
+    {
+      "id": "pod-001",
+      "tripId": "trip-001",
+      "files": [
         {
-            "id": "trip-001",
-            "tripId": "trip-001",
-            "tankerDayId": "td-2026-01-09-tanker-1",
-            "tankerId": "tanker-1",
-            "date": "2026-01-09",
-            "tripNumber": "1",
-            "tanker": "ABC-1234",
-            "driver": "Juan Cruz",
-            "porter": "Carlos Lopez",
-            "customer": "Shell Philippines",
-            "station": "Shell EDSA",
-            "eta": "08:00",
-            "products": [
-                "DIESEL",
-                "UNLEADED 91"
-            ],
-            "quantity": 15000,
-            "status": "COMPLETED",
-            "departedAt": "2026-01-09T06:30:00",
-            "returnedAt": "2026-01-09T08:15:00",
-            "completedAt": "2026-01-09T08:20:00",
-            "plannedQty": 15000,
-            "actualQty": 15000,
-            "variance": 0,
-            "hasPod": true,
-            "podFiles": [
-                "delivery_receipt.pdf"
-            ],
-            "hasException": false,
-            "compartmentAllocation": [
-                {
-                    "compartmentId": "comp-1",
-                    "name": "Comp 1",
-                    "startQty": 7500,
-                    "refillQty": 0,
-                    "totalQty": 7500,
-                    "plannedQty": 7500,
-                    "actualQty": 7500,
-                    "product": "DIESEL"
-                },
-                {
-                    "compartmentId": "comp-3",
-                    "name": "Comp 3",
-                    "startQty": 7500,
-                    "refillQty": 0,
-                    "totalQty": 7500,
-                    "plannedQty": 7500,
-                    "actualQty": 7500,
-                    "product": "UNLEADED 91"
-                }
-            ]
-        },
-        {
-            "id": "trip-002",
-            "tripId": "trip-002",
-            "tankerDayId": "td-2026-01-09-tanker-1",
-            "tankerId": "tanker-1",
-            "date": "2026-01-09",
-            "tripNumber": "2",
-            "tanker": "ABC-1234",
-            "driver": "Juan Cruz",
-            "porter": "Carlos Lopez",
-            "customer": "Petron Corporation",
-            "station": "Petron Makati",
-            "eta": "12:00",
-            "products": [
-                "DIESEL"
-            ],
-            "quantity": 7500,
-            "status": "RETURNED",
-            "departedAt": "2026-01-09T10:00:00",
-            "returnedAt": "2026-01-09T11:45:00",
-            "completedAt": null,
-            "plannedQty": 7500,
-            "actualQty": 7500,
-            "variance": 0,
-            "hasPod": false,
-            "podFiles": [],
-            "hasException": false,
-            "compartmentAllocation": [
-                {
-                    "compartmentId": "comp-2",
-                    "name": "Comp 2",
-                    "startQty": 7500,
-                    "refillQty": 0,
-                    "totalQty": 7500,
-                    "plannedQty": 7500,
-                    "actualQty": 7500,
-                    "product": "DIESEL"
-                }
-            ]
+          "name": "delivery_receipt.pdf",
+          "size": 245000,
+          "uploadedAt": "2026-01-09T08:20:00"
         }
-    ],
-    "pods": [
+      ],
+      "status": "PENDING_REVIEW",
+      "uploadedBy": "John Encoder",
+      "uploadedAt": "2026-01-09T08:20:00"
+    },
+    {
+      "id": "pod-1767969780871",
+      "tripId": "trip-002",
+      "files": [
         {
-            "id": "pod-001",
-            "tripId": "trip-001",
-            "files": [
-                {
-                    "name": "delivery_receipt.pdf",
-                    "size": 245000,
-                    "uploadedAt": "2026-01-09T08:20:00"
-                }
-            ],
-            "status": "PENDING_REVIEW",
-            "uploadedBy": "John Encoder",
-            "uploadedAt": "2026-01-09T08:20:00"
+          "name": "Markdown Preview.pdf",
+          "size": 1434570,
+          "uploadedAt": "2026-01-09T14:43:00.871Z"
         }
-    ],
-    "tripComments": [
-        {
-            "id": "tc-001",
-            "tripId": "trip-001",
-            "author": "John Encoder",
-            "role": "encoder",
-            "message": "POD uploaded. Trip marked as completed.",
-            "createdAt": "2026-01-09T08:20:00"
-        },
-        {
-            "id": "tc-002",
-            "tripId": "trip-002",
-            "author": "John Encoder",
-            "role": "encoder",
-            "message": "Trip marked as returned. Tanker is back. Awaiting POD upload.",
-            "createdAt": "2026-01-09T11:45:00"
-        }
-    ]
+      ],
+      "status": "PENDING_REVIEW",
+      "uploadedBy": "John Encoder",
+      "uploadedAt": "2026-01-09T14:43:00.871Z"
+    }
+  ],
+  "tripComments": [
+    {
+      "id": "tc-001",
+      "tripId": "trip-001",
+      "author": "John Encoder",
+      "role": "encoder",
+      "message": "POD uploaded. Trip marked as completed.",
+      "createdAt": "2026-01-09T08:20:00"
+    },
+    {
+      "id": "tc-002",
+      "tripId": "trip-002",
+      "author": "John Encoder",
+      "role": "encoder",
+      "message": "Trip marked as returned. Tanker is back. Awaiting POD upload.",
+      "createdAt": "2026-01-09T11:45:00"
+    },
+    {
+      "id": "c1767969780885",
+      "tripId": "trip-002",
+      "author": "System",
+      "role": "system",
+      "message": "POD uploaded with 1 file(s). Trip marked as completed.",
+      "createdAt": "2026-01-09T14:43:00.871Z"
+    }
+  ]
 }

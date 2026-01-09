@@ -95,8 +95,8 @@ export default function TankerDayDetailPage() {
         }
     }
 
-    const canPerformOperations = userRole === 'encoder' || userRole === 'admin'
-    const canApprove = userRole === 'supervisor' || userRole === 'admin'
+    const canPerformOperations = (userRole === 'encoder' || userRole === 'admin') && data?.status === 'OPEN'
+    const canApprove = (userRole === 'supervisor' || userRole === 'admin') && data?.status === 'SUBMITTED'
 
     const getTotalTripQty = () => Object.values(tripForm.compartments).reduce((a, b) => a + b.plannedQty, 0)
 
@@ -285,18 +285,115 @@ export default function TankerDayDetailPage() {
         setShowPodModal(true)
     }
 
-    const handleUploadPod = () => {
+    const handleUploadPod = async () => {
         if (!data || !selectedTrip) return
+
+        const timestamp = new Date().toISOString()
+        const filename = `POD_${selectedTrip.tripNumber}_${Date.now()}.jpg`
+        const newPodFiles = [...selectedTrip.podFiles, filename]
+
+        try {
+            // 1. Create pseudo-POD via API for Trips page compatibility
+            await fetch('http://localhost:3001/pods', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    id: `pod-${Date.now()}`,
+                    tripId: selectedTrip.id,
+                    files: [{
+                        name: filename,
+                        size: 1024,
+                        uploadedAt: timestamp
+                    }],
+                    status: 'PENDING_REVIEW',
+                    uploadedBy: 'Encoder',
+                    uploadedAt: timestamp
+                })
+            })
+
+            // 2. Update Trip via API
+            await fetch(`http://localhost:3001/trips/${selectedTrip.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    hasPod: true,
+                    status: 'COMPLETED',
+                    completedAt: timestamp,
+                    podFiles: newPodFiles
+                })
+            })
+        } catch (error) {
+            console.error('Failed to sync POD upload:', error)
+            // Continue to optimistic update
+        }
+
         setData({
             ...data,
             trips: data.trips.map(t =>
                 t.id === selectedTrip.id
-                    ? { ...t, hasPod: true, podFiles: [...t.podFiles, `POD_${selectedTrip.tripNumber}_${Date.now()}.jpg`] }
+                    ? {
+                        ...t,
+                        hasPod: true,
+                        podFiles: newPodFiles,
+                        status: 'COMPLETED',
+                        completedAt: timestamp
+                    }
                     : t
             ),
         })
         setShowPodModal(false)
         setSelectedTrip(null)
+    }
+
+    const handleSubmitForReview = async () => {
+        if (!data) return
+
+        try {
+            // Update via API
+            await fetch(`http://localhost:3001/tankerDays/${data.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    status: 'SUBMITTED'
+                })
+            })
+
+            // Update local state
+            setData({ ...data, status: 'SUBMITTED' })
+
+            // Add timeline event
+            // Note: In a real app, timeline should be added via API too
+        } catch (error) {
+            console.error('Failed to submit:', error)
+        }
+    }
+
+    const handleReturn = async () => {
+        if (!data) return
+        try {
+            await fetch(`http://localhost:3001/tankerDays/${data.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'OPEN' })
+            })
+            setData({ ...data, status: 'OPEN' })
+        } catch (error) {
+            console.error('Failed to return:', error)
+        }
+    }
+
+    const handleApprove = async () => {
+        if (!data) return
+        try {
+            await fetch(`http://localhost:3001/tankerDays/${data.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ status: 'LOCKED' })
+            })
+            setData({ ...data, status: 'LOCKED' })
+        } catch (error) {
+            console.error('Failed to approve:', error)
+        }
     }
 
     const getStatusBadge = (status: string) => {
@@ -392,17 +489,26 @@ export default function TankerDayDetailPage() {
                 </div>
                 <div className="flex gap-3">
                     {data.status === 'OPEN' && canPerformOperations && (
-                        <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2">
+                        <button
+                            onClick={handleSubmitForReview}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium text-sm flex items-center gap-2"
+                        >
                             <Send className="h-4 w-4" />
                             Submit for Review
                         </button>
                     )}
                     {data.status === 'SUBMITTED' && canApprove && (
                         <>
-                            <button className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium text-sm">
+                            <button
+                                onClick={handleReturn}
+                                className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 font-medium text-sm"
+                            >
                                 Return
                             </button>
-                            <button className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm flex items-center gap-2">
+                            <button
+                                onClick={handleApprove}
+                                className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium text-sm flex items-center gap-2"
+                            >
                                 <Lock className="h-4 w-4" />
                                 Approve & Lock
                             </button>
@@ -601,6 +707,42 @@ export default function TankerDayDetailPage() {
                         </div>
                     </div>
 
+
+                </div>
+
+                {/* Right Column - Summary */}
+                <div className="space-y-6">
+                    {/* Summary */}
+                    <div className="bg-white rounded-xl border border-gray-100 p-6">
+                        <h3 className="font-semibold text-gray-900 mb-4">Summary</h3>
+                        <div className="space-y-4">
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-500">Total Planned (Day)</span>
+                                <span className="font-bold text-gray-900">{data.summary.totalPlanned.toLocaleString()} L</span>
+                            </div>
+                            <div className="flex justify-between items-center">
+                                <span className="text-gray-500">Delivered (Day)</span>
+                                <span className="font-bold text-gray-900">{data.summary.totalDelivered.toLocaleString()} L</span>
+                            </div>
+                            {data.summary.totalVariance !== 0 && (
+                                <div className={`flex justify-between items-center ${data.summary.totalVariance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                    <span>Variance</span>
+                                    <span className="font-bold">{data.summary.totalVariance > 0 ? '+' : ''}{data.summary.totalVariance.toLocaleString()} L</span>
+                                </div>
+                            )}
+                            <div className="border-t border-gray-100 pt-4 flex justify-between items-center">
+                                <span className="text-gray-500">Trips</span>
+                                <span className="font-bold text-gray-900">{data.summary.tripsCompleted}/{data.summary.totalTrips}</span>
+                            </div>
+                            {data.summary.exceptions > 0 && (
+                                <div className="flex justify-between items-center text-red-600">
+                                    <span className="flex items-center gap-1"><AlertTriangle className="h-4 w-4" />Exceptions</span>
+                                    <span className="font-bold">{data.summary.exceptions}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
                     {/* Timeline */}
                     <div className="bg-white rounded-xl border border-gray-100 p-6">
                         <h3 className="font-semibold text-gray-900 mb-4">Timeline</h3>
@@ -637,40 +779,6 @@ export default function TankerDayDetailPage() {
                                     </div>
                                 </div>
                             ))}
-                        </div>
-                    </div>
-                </div>
-
-                {/* Right Column - Summary */}
-                <div className="space-y-6">
-                    {/* Summary */}
-                    <div className="bg-white rounded-xl border border-gray-100 p-6">
-                        <h3 className="font-semibold text-gray-900 mb-4">Summary</h3>
-                        <div className="space-y-4">
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-500">Total Planned (Day)</span>
-                                <span className="font-bold text-gray-900">{data.summary.totalPlanned.toLocaleString()} L</span>
-                            </div>
-                            <div className="flex justify-between items-center">
-                                <span className="text-gray-500">Delivered (Day)</span>
-                                <span className="font-bold text-gray-900">{data.summary.totalDelivered.toLocaleString()} L</span>
-                            </div>
-                            {data.summary.totalVariance !== 0 && (
-                                <div className={`flex justify-between items-center ${data.summary.totalVariance < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                    <span>Variance</span>
-                                    <span className="font-bold">{data.summary.totalVariance > 0 ? '+' : ''}{data.summary.totalVariance.toLocaleString()} L</span>
-                                </div>
-                            )}
-                            <div className="border-t border-gray-100 pt-4 flex justify-between items-center">
-                                <span className="text-gray-500">Trips</span>
-                                <span className="font-bold text-gray-900">{data.summary.tripsCompleted}/{data.summary.totalTrips}</span>
-                            </div>
-                            {data.summary.exceptions > 0 && (
-                                <div className="flex justify-between items-center text-red-600">
-                                    <span className="flex items-center gap-1"><AlertTriangle className="h-4 w-4" />Exceptions</span>
-                                    <span className="font-bold">{data.summary.exceptions}</span>
-                                </div>
-                            )}
                         </div>
                     </div>
                 </div>

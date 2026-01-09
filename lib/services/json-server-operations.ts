@@ -59,9 +59,27 @@ export class JsonServerOperationsService implements IOperationsService {
             // Also fetch trips for this tanker day from the trips collection
             const trips = await this.fetchJson<TripDetail[]>(`/trips?tankerDayId=${id}`)
 
+            // Calculate summary dynamically from trips
+            const summary = (trips || []).reduce((acc, t) => ({
+                totalPlanned: acc.totalPlanned + (t.plannedQty || 0),
+                totalDelivered: acc.totalDelivered + (t.actualQty || 0),
+                totalVariance: acc.totalVariance + (t.variance || 0),
+                tripsCompleted: acc.tripsCompleted + (t.status === 'COMPLETED' ? 1 : 0),
+                totalTrips: acc.totalTrips + 1,
+                exceptions: acc.exceptions + ((t as any).hasException ? 1 : 0)
+            }), {
+                totalPlanned: 0,
+                totalDelivered: 0,
+                totalVariance: 0,
+                tripsCompleted: 0,
+                totalTrips: 0,
+                exceptions: 0
+            })
+
             return {
                 ...days[0],
-                trips: trips || []
+                trips: trips || [],
+                summary
             }
         } catch (error) {
             console.error('Error fetching tanker day:', error)

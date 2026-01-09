@@ -59,6 +59,7 @@ interface Trip {
     completedAt: string | null
     hasPod: boolean
     hasException: boolean
+    podFiles?: string[] // Added for compatibility with Tanker Days page
     pods: POD[]
 }
 
@@ -171,37 +172,69 @@ export default function TripDetailPage() {
 
         setUploading(true)
         try {
-            await new Promise(resolve => setTimeout(resolve, 1500))
-
-            const newPod: POD = {
+            const timestamp = new Date().toISOString()
+            const newPod = {
                 id: `pod-${Date.now()}`,
+                tripId: trip.id,
                 files: uploadedFiles.map(f => ({
                     name: f.name,
                     size: f.size,
-                    uploadedAt: new Date().toISOString()
+                    uploadedAt: timestamp
                 })),
-                status: 'PENDING_REVIEW',
+                status: 'PENDING_REVIEW' as const,
                 uploadedBy: userName || 'Encoder',
-                uploadedAt: new Date().toISOString()
+                uploadedAt: timestamp
             }
 
-            setTrip({
-                ...trip,
-                hasPod: true,
-                status: 'COMPLETED',  // Trip completed when POD uploaded
-                completedAt: new Date().toISOString(),
-                pods: [...trip.pods, newPod]
+            // 1. Save POD
+            await fetch('http://localhost:3001/pods', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newPod)
             })
-            setUploadedFiles([])
 
-            // Add system event
-            const newCommentObj: Comment = {
+            // 2. Update Trip Status
+            // Collect all filenames including existing pods and new upload
+            const existingFilenames = trip.pods.flatMap(p => p.files.map(f => f.name))
+            const newFilenames = uploadedFiles.map(f => f.name)
+            const allFilenames = [...existingFilenames, ...newFilenames]
+
+            await fetch(`http://localhost:3001/trips/${trip.id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    hasPod: true,
+                    status: 'COMPLETED',
+                    completedAt: timestamp,
+                    podFiles: allFilenames // Update string array for tanker-days compatibility
+                })
+            })
+
+            // 3. Add System Comment
+            const newCommentObj = {
                 id: `c${Date.now()}`,
+                tripId: trip.id,
                 author: 'System',
                 role: 'system',
                 message: `POD uploaded with ${uploadedFiles.length} file(s). Trip marked as completed.`,
-                createdAt: new Date().toISOString()
+                createdAt: timestamp
             }
+
+            await fetch('http://localhost:3001/tripComments', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(newCommentObj)
+            })
+
+            // Update local state
+            setTrip({
+                ...trip,
+                hasPod: true,
+                status: 'COMPLETED',
+                completedAt: timestamp,
+                pods: [...trip.pods, newPod] // newPod has extra tripId but that's fine
+            })
+            setUploadedFiles([])
             setComments(prev => [newCommentObj, ...prev])
         } catch (error) {
             console.error('Error uploading:', error)
