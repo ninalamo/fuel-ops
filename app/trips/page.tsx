@@ -267,9 +267,9 @@ export default function TripsPage() {
                                                     <span
                                                         key={idx}
                                                         className={`text-xs font-medium px-2 py-0.5 rounded ${product === 'DIESEL' ? 'bg-blue-50 text-blue-700' :
-                                                                product === 'UNLEADED 91' ? 'bg-green-50 text-green-700' :
-                                                                    product === 'UNLEADED 95' ? 'bg-amber-50 text-amber-700' :
-                                                                        'bg-purple-50 text-purple-700'
+                                                            product === 'UNLEADED 91' ? 'bg-green-50 text-green-700' :
+                                                                product === 'UNLEADED 95' ? 'bg-amber-50 text-amber-700' :
+                                                                    'bg-purple-50 text-purple-700'
                                                             }`}
                                                     >
                                                         {product}
@@ -296,7 +296,7 @@ export default function TripsPage() {
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <Link
-                                                href={`/tanker-days/${trip.tankerDayId}`}
+                                                href={`/trips/${trip.id}`}
                                                 className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 text-sm"
                                             >
                                                 View
