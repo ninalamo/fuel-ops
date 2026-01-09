@@ -26,7 +26,7 @@ interface Trip {
     porter: string
     customer: string
     station: string
-    product: string
+    products: string[]
     quantity: number
     status: 'PENDING' | 'DEPARTED' | 'DELIVERED' | 'RETURNED'
     departedAt: string | null
@@ -262,10 +262,20 @@ export default function TripsPage() {
                                             </div>
                                         </td>
                                         <td className="px-4 py-3">
-                                            <span className={`text-xs font-medium px-2 py-0.5 rounded ${trip.product === 'DIESEL' ? 'bg-blue-50 text-blue-700' : 'bg-green-50 text-green-700'
-                                                }`}>
-                                                {trip.product}
-                                            </span>
+                                            <div className="flex flex-wrap gap-1">
+                                                {trip.products.map((product, idx) => (
+                                                    <span
+                                                        key={idx}
+                                                        className={`text-xs font-medium px-2 py-0.5 rounded ${product === 'DIESEL' ? 'bg-blue-50 text-blue-700' :
+                                                                product === 'UNLEADED 91' ? 'bg-green-50 text-green-700' :
+                                                                    product === 'UNLEADED 95' ? 'bg-amber-50 text-amber-700' :
+                                                                        'bg-purple-50 text-purple-700'
+                                                            }`}
+                                                    >
+                                                        {product}
+                                                    </span>
+                                                ))}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3 text-right">
                                             <span className="text-sm font-medium text-gray-900">

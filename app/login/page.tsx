@@ -7,7 +7,6 @@ import { Fuel, User, Lock } from 'lucide-react'
 // Demo users with predefined roles
 const DEMO_USERS = [
     { email: 'john@fuelops.com', password: 'demo123', name: 'John Encoder', role: 'encoder' },
-    { email: 'maria@fuelops.com', password: 'demo123', name: 'Maria Validator', role: 'validator' },
     { email: 'carlos@fuelops.com', password: 'demo123', name: 'Carlos Supervisor', role: 'supervisor' },
     { email: 'admin@fuelops.com', password: 'demo123', name: 'System Admin', role: 'admin' },
 ]

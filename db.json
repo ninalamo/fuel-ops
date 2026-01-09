@@ -1,12 +1,220 @@
 {
+    "tankers": [
+        {
+            "id": "tanker-1",
+            "plateNumber": "ABC-1234",
+            "capacity": 30000,
+            "compartments": [
+                {
+                    "id": "comp-tanker-1-1",
+                    "name": "Comp 1",
+                    "maxVolume": 7500
+                },
+                {
+                    "id": "comp-tanker-1-2",
+                    "name": "Comp 2",
+                    "maxVolume": 7500
+                },
+                {
+                    "id": "comp-tanker-1-3",
+                    "name": "Comp 3",
+                    "maxVolume": 7500
+                },
+                {
+                    "id": "comp-tanker-1-4",
+                    "name": "Comp 4",
+                    "maxVolume": 7500
+                }
+            ]
+        },
+        {
+            "id": "tanker-2",
+            "plateNumber": "XYZ-5678",
+            "capacity": 25000,
+            "compartments": [
+                {
+                    "id": "comp-tanker-2-1",
+                    "name": "Comp 1",
+                    "maxVolume": 8333
+                },
+                {
+                    "id": "comp-tanker-2-2",
+                    "name": "Comp 2",
+                    "maxVolume": 8333
+                },
+                {
+                    "id": "comp-tanker-2-3",
+                    "name": "Comp 3",
+                    "maxVolume": 8334
+                }
+            ]
+        },
+        {
+            "id": "tanker-3",
+            "plateNumber": "DEF-9012",
+            "capacity": 20000,
+            "compartments": [
+                {
+                    "id": "comp-tanker-3-1",
+                    "name": "Comp 1",
+                    "maxVolume": 10000
+                },
+                {
+                    "id": "comp-tanker-3-2",
+                    "name": "Comp 2",
+                    "maxVolume": 10000
+                }
+            ]
+        },
+        {
+            "id": "tanker-4",
+            "plateNumber": "GHI-3456",
+            "capacity": 20000,
+            "compartments": [
+                {
+                    "id": "comp-tanker-4-1",
+                    "name": "Comp 1",
+                    "maxVolume": 4000
+                },
+                {
+                    "id": "comp-tanker-4-2",
+                    "name": "Comp 2",
+                    "maxVolume": 4000
+                },
+                {
+                    "id": "comp-tanker-4-3",
+                    "name": "Comp 3",
+                    "maxVolume": 4000
+                },
+                {
+                    "id": "comp-tanker-4-4",
+                    "name": "Comp 4",
+                    "maxVolume": 4000
+                },
+                {
+                    "id": "comp-tanker-4-5",
+                    "name": "Comp 5",
+                    "maxVolume": 4000
+                }
+            ]
+        }
+    ],
+    "drivers": [
+        {
+            "id": "driver-1",
+            "name": "Juan Cruz"
+        },
+        {
+            "id": "driver-2",
+            "name": "Pedro Santos"
+        },
+        {
+            "id": "driver-3",
+            "name": "Maria Garcia"
+        },
+        {
+            "id": "driver-4",
+            "name": "Jose Reyes"
+        },
+        {
+            "id": "driver-5",
+            "name": "Miguel Torres"
+        }
+    ],
+    "porters": [
+        {
+            "id": "porter-1",
+            "name": "Carlos Lopez"
+        },
+        {
+            "id": "porter-2",
+            "name": "Ana Mendez"
+        },
+        {
+            "id": "porter-3",
+            "name": "Luis Torres"
+        },
+        {
+            "id": "porter-4",
+            "name": "Rosa Fernandez"
+        }
+    ],
+    "customers": [
+        {
+            "id": "customer-1",
+            "name": "Shell Philippines"
+        },
+        {
+            "id": "customer-2",
+            "name": "Petron Corporation"
+        },
+        {
+            "id": "customer-3",
+            "name": "Caltex Philippines"
+        },
+        {
+            "id": "customer-4",
+            "name": "Phoenix Petroleum"
+        }
+    ],
+    "stations": [
+        {
+            "id": "station-1",
+            "name": "Shell EDSA",
+            "customerId": "customer-1"
+        },
+        {
+            "id": "station-2",
+            "name": "Shell Ortigas",
+            "customerId": "customer-1"
+        },
+        {
+            "id": "station-3",
+            "name": "Petron Makati",
+            "customerId": "customer-2"
+        },
+        {
+            "id": "station-4",
+            "name": "Petron BGC",
+            "customerId": "customer-2"
+        },
+        {
+            "id": "station-5",
+            "name": "Caltex Alabang",
+            "customerId": "customer-3"
+        },
+        {
+            "id": "station-6",
+            "name": "Phoenix Quezon Ave",
+            "customerId": "customer-4"
+        }
+    ],
+    "fuelTypes": [
+        {
+            "id": "fuel-1",
+            "name": "DIESEL"
+        },
+        {
+            "id": "fuel-2",
+            "name": "UNLEADED 91"
+        },
+        {
+            "id": "fuel-3",
+            "name": "UNLEADED 95"
+        },
+        {
+            "id": "fuel-4",
+            "name": "PREMIUM GASOLINE"
+        }
+    ],
     "tankerDays": [
         {
-            "id": "td-2026-01-06-tanker-1",
-            "date": "2026-01-06",
+            "id": "td-2026-01-09-tanker-1",
+            "date": "2026-01-09",
             "tankerId": "tanker-1",
             "plateNumber": "ABC-1234",
-            "driver": "Mock Driver",
-            "porter": "Mock Porter",
+            "driver": "Juan Cruz",
+            "porter": "Carlos Lopez",
             "status": "OPEN",
             "compartments": [
                 {
@@ -25,13 +233,13 @@
                     "id": "comp-tanker-1-3",
                     "name": "Comp 3",
                     "maxVolume": 7500,
-                    "product": "DIESEL"
+                    "product": "UNLEADED 91"
                 },
                 {
                     "id": "comp-tanker-1-4",
                     "name": "Comp 4",
                     "maxVolume": 7500,
-                    "product": "DIESEL"
+                    "product": "UNLEADED 95"
                 }
             ],
             "trips": [],
@@ -46,81 +254,140 @@
             }
         },
         {
-            "id": "td-2026-01-06-tanker-4",
-            "date": "2026-01-06",
+            "id": "td-2026-01-09-tanker-4",
+            "date": "2026-01-09",
             "tankerId": "tanker-4",
             "plateNumber": "GHI-3456",
-            "driver": "Mock Driver",
-            "porter": "Mock Porter",
-            "status": "LOCKED",
+            "driver": "Pedro Santos",
+            "porter": "Ana Mendez",
+            "status": "SUBMITTED",
             "compartments": [
                 {
                     "id": "comp-tanker-4-1",
                     "name": "Comp 1",
                     "maxVolume": 4000,
-                    "product": "GASOLINE"
+                    "product": "UNLEADED 91"
                 },
                 {
                     "id": "comp-tanker-4-2",
                     "name": "Comp 2",
                     "maxVolume": 4000,
-                    "product": "GASOLINE"
+                    "product": "UNLEADED 91"
                 },
                 {
                     "id": "comp-tanker-4-3",
                     "name": "Comp 3",
                     "maxVolume": 4000,
-                    "product": "GASOLINE"
+                    "product": "DIESEL"
                 },
                 {
                     "id": "comp-tanker-4-4",
                     "name": "Comp 4",
                     "maxVolume": 4000,
-                    "product": "GASOLINE"
+                    "product": "DIESEL"
                 },
                 {
                     "id": "comp-tanker-4-5",
                     "name": "Comp 5",
                     "maxVolume": 4000,
-                    "product": "GASOLINE"
+                    "product": "PREMIUM GASOLINE"
                 }
             ],
-            "trips": [
-                {
-                    "tripId": "trip-mock-1",
-                    "id": "trip-mock-1",
-                    "tripNumber": "1",
-                    "tankerId": "tanker-4",
-                    "driver": "Mock Driver",
-                    "porter": "Mock Porter",
-                    "station": "Shell EDSA",
-                    "customer": "Shell",
-                    "eta": "10:00 AM",
-                    "status": "COMPLETED",
-                    "compartmentAllocation": [],
-                    "products": [
-                        "GASOLINE"
-                    ],
-                    "plannedQty": 5000,
-                    "actualQty": 5000,
-                    "variance": 0,
-                    "hasPod": true,
-                    "podFiles": [
-                        "pod-mock-1.jpg"
-                    ],
-                    "departedAt": "2026-01-06T13:00:00.000Z",
-                    "returnedAt": "2026-01-06T15:00:00.000Z"
-                }
-            ],
+            "trips": [],
             "timeline": [],
             "summary": {
-                "totalPlanned": 5000,
-                "totalDelivered": 5000,
+                "totalPlanned": 0,
+                "totalDelivered": 0,
                 "totalVariance": 0,
-                "tripsCompleted": 1,
-                "totalTrips": 1,
+                "tripsCompleted": 0,
+                "totalTrips": 0,
                 "exceptions": 0
             }
+        }
+    ],
+    "trips": [
+        {
+            "id": "trip-2026-01-09-tanker-1-1",
+            "tankerDayId": "td-2026-01-09-tanker-1",
+            "date": "2026-01-09",
+            "tripNumber": 1,
+            "tanker": "ABC-1234",
+            "driver": "Juan Cruz",
+            "porter": "Carlos Lopez",
+            "customer": "Shell Philippines",
+            "station": "Shell EDSA",
+            "products": [
+                "DIESEL",
+                "UNLEADED 91"
+            ],
+            "quantity": 15000,
+            "status": "DEPARTED",
+            "departedAt": "2026-01-09T06:30:00",
+            "deliveredAt": null,
+            "hasPod": false,
+            "hasException": false
+        },
+        {
+            "id": "trip-2026-01-09-tanker-1-2",
+            "tankerDayId": "td-2026-01-09-tanker-1",
+            "date": "2026-01-09",
+            "tripNumber": 2,
+            "tanker": "ABC-1234",
+            "driver": "Juan Cruz",
+            "porter": "Carlos Lopez",
+            "customer": "Petron Corporation",
+            "station": "Petron Makati",
+            "products": [
+                "DIESEL"
+            ],
+            "quantity": 7500,
+            "status": "PENDING",
+            "departedAt": null,
+            "deliveredAt": null,
+            "hasPod": false,
+            "hasException": false
+        },
+        {
+            "id": "trip-2026-01-09-tanker-4-1",
+            "tankerDayId": "td-2026-01-09-tanker-4",
+            "date": "2026-01-09",
+            "tripNumber": 1,
+            "tanker": "GHI-3456",
+            "driver": "Pedro Santos",
+            "porter": "Ana Mendez",
+            "customer": "Shell Philippines",
+            "station": "Shell Ortigas",
+            "products": [
+                "UNLEADED 91",
+                "DIESEL",
+                "PREMIUM GASOLINE"
+            ],
+            "quantity": 12000,
+            "status": "DELIVERED",
+            "departedAt": "2026-01-09T05:00:00",
+            "deliveredAt": "2026-01-09T07:30:00",
+            "hasPod": true,
+            "hasException": false
+        },
+        {
+            "id": "trip-2026-01-09-tanker-4-2",
+            "tankerDayId": "td-2026-01-09-tanker-4",
+            "date": "2026-01-09",
+            "tripNumber": 2,
+            "tanker": "GHI-3456",
+            "driver": "Pedro Santos",
+            "porter": "Ana Mendez",
+            "customer": "Phoenix Petroleum",
+            "station": "Phoenix Quezon Ave",
+            "products": [
+                "DIESEL"
+            ],
+            "quantity": 8000,
+            "status": "RETURNED",
+            "departedAt": "2026-01-09T08:00:00",
+            "deliveredAt": "2026-01-09T10:15:00",
+            "hasPod": true,
+            "hasException": true
         }
     ]
 }

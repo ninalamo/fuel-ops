@@ -66,23 +66,22 @@ export class JsonServerOperationsService implements IOperationsService {
         const existing = await this.fetchJson<TankerDayDetail[]>(`/tankerDays?date=${date}&tankerId=${tankerId}`)
         if (existing.length > 0) throw new Error('Tanker Day already exists')
 
-        // 2. Prepare new data (Similar to Mock)
-        // Hardcoded "Lookup" since we don't have a Tankers table in db.json yet
-        // In real impl, we'd fetch from /tankers
-        const MOCK_TANKERS_DATA = [
-            { id: 'tanker-1', plateNumber: 'ABC-1234', capacity: 30000, product: 'DIESEL', compartments: 4 },
-            { id: 'tanker-2', plateNumber: 'XYZ-5678', capacity: 25000, product: 'DIESEL', compartments: 3 },
-            { id: 'tanker-3', plateNumber: 'DEF-9012', capacity: 30000, product: 'DIESEL', compartments: 2 },
-            { id: 'tanker-4', plateNumber: 'GHI-3456', capacity: 20000, product: 'GASOLINE', compartments: 5 },
-        ]
-        const tanker = MOCK_TANKERS_DATA.find(t => t.id === tankerId)
+        // 2. Fetch tanker from json-server
+        interface TankerRecord {
+            id: string
+            plateNumber: string
+            capacity: number
+            compartments: { id: string; name: string; maxVolume: number }[]
+        }
+        const tankers = await this.fetchJson<TankerRecord[]>(`/tankers?id=${tankerId}`)
+        const tanker = tankers[0]
         if (!tanker) throw new Error('Tanker not found')
 
-        const compartments: Compartment[] = Array.from({ length: tanker.compartments }).map((_, i) => ({
-            id: `comp-${tankerId}-${i + 1}`,
-            name: `Comp ${i + 1}`,
-            maxVolume: Math.floor(tanker.capacity / tanker.compartments),
-            product: tanker.product
+        const compartments: Compartment[] = tanker.compartments.map((c) => ({
+            id: c.id,
+            name: c.name,
+            maxVolume: c.maxVolume,
+            product: '' // Product assigned per trip
         }))
 
         const newDay: TankerDayDetail = {

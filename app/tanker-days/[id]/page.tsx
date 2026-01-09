@@ -93,7 +93,7 @@ export default function TankerDayDetailPage() {
     }
 
     const canPerformOperations = userRole === 'encoder' || userRole === 'admin'
-    const canApprove = userRole === 'validator' || userRole === 'supervisor' || userRole === 'admin'
+    const canApprove = userRole === 'supervisor' || userRole === 'admin'
 
     const getTotalTripQty = () => Object.values(tripForm.compartments).reduce((a, b) => a + b.plannedQty, 0)
 

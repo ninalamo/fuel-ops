@@ -166,8 +166,8 @@ export default function DashboardPage() {
 
     // Filter tanker days based on role
     const filteredTankerDays = tankerDays.filter(td => {
-        if (userRole === 'validator' || userRole === 'supervisor') {
-            // Both roles see Submitted and Locked records
+        if (userRole === 'supervisor') {
+            // Supervisor sees Submitted and Locked records
             return td.status === 'SUBMITTED' || td.status === 'LOCKED'
         }
         return true
@@ -180,7 +180,6 @@ export default function DashboardPage() {
     const getRoleTitle = () => {
         switch (userRole) {
             case 'encoder': return 'Fleet Dashboard'
-            case 'validator': return 'Review Queue'
             case 'supervisor': return 'Supervisor Dashboard'
             case 'admin': return 'Admin Dashboard'
             default: return 'Dashboard'
@@ -190,8 +189,7 @@ export default function DashboardPage() {
     const getRoleSubtitle = () => {
         switch (userRole) {
             case 'encoder': return 'Manage tanker daily operations, trips, and fuel recording'
-            case 'validator': return 'Review and approve submitted tanker day records'
-            case 'supervisor': return 'Oversight and POD verification'
+            case 'supervisor': return 'Review, approve records and POD verification'
             case 'admin': return 'System administration and master data'
             default: return 'Track and manage operations'
         }
@@ -261,7 +259,7 @@ export default function DashboardPage() {
                     label="Submitted"
                     value={stats.submitted}
                     color="yellow"
-                    highlight={userRole === 'validator' || userRole === 'supervisor'}
+                    highlight={userRole === 'supervisor'}
                 />
                 <StatCard label="Locked" value={stats.locked} color="green" />
             </div>
@@ -270,9 +268,9 @@ export default function DashboardPage() {
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
                     <h2 className="text-lg font-semibold text-gray-900">
-                        {userRole === 'validator' ? 'Pending Reviews' : 'Tanker Operations'}
+                        {userRole === 'supervisor' ? 'Pending Reviews' : 'Tanker Operations'}
                     </h2>
-                    {(userRole === 'validator' || userRole === 'supervisor') && stats.submitted > 0 && (
+                    {userRole === 'supervisor' && stats.submitted > 0 && (
                         <span className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
                             {stats.submitted} awaiting review
                         </span>
@@ -287,10 +285,10 @@ export default function DashboardPage() {
                     <div className="text-center py-12">
                         <Truck className="h-12 w-12 mx-auto text-gray-300 mb-4" />
                         <h3 className="text-lg font-medium text-gray-900 mb-2">
-                            {userRole === 'validator' ? 'No Pending Reviews' : 'No Tanker Days'}
+                            {userRole === 'supervisor' ? 'No Pending Reviews' : 'No Tanker Days'}
                         </h3>
                         <p className="text-gray-500 mb-4">
-                            {userRole === 'validator'
+                            {userRole === 'supervisor'
                                 ? 'All tanker days have been reviewed.'
                                 : 'No operations scheduled for this date.'}
                         </p>
@@ -343,7 +341,7 @@ export default function DashboardPage() {
                                                 href={`/tanker-days/${tanker.id}`}
                                                 className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 font-medium text-sm"
                                             >
-                                                {userRole === 'validator' && tanker.status === 'SUBMITTED' ? (
+                                                {userRole === 'supervisor' && tanker.status === 'SUBMITTED' ? (
                                                     <>
                                                         <Eye className="h-4 w-4" />
                                                         Review

@@ -300,7 +300,7 @@ export default function FleetStatusPage() {
                                     className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
                                 >
                                     <Eye className="h-4 w-4" />
-                                    {userRole === 'validator' && tanker.tankerDayStatus === 'SUBMITTED' ? 'Review' : 'Details'}
+                                    {userRole === 'supervisor' && tanker.tankerDayStatus === 'SUBMITTED' ? 'Review' : 'Details'}
                                     <ChevronRight className="h-4 w-4" />
                                 </Link>
                             </div>
