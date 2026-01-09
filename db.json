@@ -97,7 +97,7 @@
       "plateNumber": "ABC-1234",
       "driver": "Juan Cruz",
       "porter": "Carlos Lopez",
-      "status": "SUBMITTED",
+      "status": "LOCKED",
       "compartments": [
         {
           "id": "comp-1",
@@ -124,7 +124,32 @@
           "product": "UNLEADED 91"
         }
       ],
-      "timeline": [],
+      "timeline": [
+        {
+          "id": "evt-1767971105336",
+          "type": "SNAPSHOT",
+          "title": "Returned",
+          "description": "Tanker Day returned for correction",
+          "timestamp": "2026-01-09T15:05:05.336Z",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "evt-1767971127567",
+          "type": "SNAPSHOT",
+          "title": "Submitted for Review",
+          "description": "Tanker Day submitted for approval",
+          "timestamp": "2026-01-09T15:05:27.567Z",
+          "status": "COMPLETED"
+        },
+        {
+          "id": "evt-1767971149656",
+          "type": "SNAPSHOT",
+          "title": "Approved & Locked",
+          "description": "Tanker Day operations approved and locked",
+          "timestamp": "2026-01-09T15:05:49.656Z",
+          "status": "COMPLETED"
+        }
+      ],
       "summary": {
         "totalPlanned": 22500,
         "totalDelivered": 15000,
